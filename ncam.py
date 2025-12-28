@@ -17,6 +17,15 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
+
+# ----------------------------------------------------------------------
+# GTK3 / PyGObject compatibility layer (NO functional changes)
+# ----------------------------------------------------------------------
+
+# TreeStore: GTK2 expected get_iter_root(), GTK3 uses get_iter_first()
+if not hasattr(Gtk.TreeStore, "get_iter_root"):
+    Gtk.TreeStore.get_iter_root = Gtk.TreeStore.get_iter_first
+
 import sys
 from lxml import etree
 import configparser
@@ -554,7 +563,7 @@ def get_short_id():
 
 def create_M_file() :
     p = os.path.join(NCAM_DIR, NGC_DIR, 'M123')
-    with open(p, 'wb') as f :
+    with open(p, 'w', encoding='utf-8') as f :
         f.write('#!/usr/bin/env python\n# coding: utf-8\n')
 
         f.write("import gi\n")
@@ -1162,7 +1171,7 @@ class CellRendererMx(Gtk.CellRendererText):
                 active_row = count
             count += 1
 
-        ls_view = Gtk.TreeView(ls)
+        ls_view = Gtk.TreeView(model=ls)
         ls_view.set_headers_visible(False)
         tvcolumn = Gtk.TreeViewColumn('Column 0')
         ls_view.append_column(tvcolumn)
@@ -2506,7 +2515,10 @@ class NCam(Gtk.VBox):
         self.builder.add_from_string(gf)
 
         self.get_widgets()
-        self.main_box.reparent(self)
+        parent = self.main_box.get_parent()
+        if parent:
+            parent.remove(self.main_box)
+        self.add(self.main_box)
 
         self.on_scale_change_value(self)
 
@@ -2520,12 +2532,14 @@ class NCam(Gtk.VBox):
         self.create_treeview()
 
         # create actions, uimanager and add menu and toolbars
-        self.action_group = Gtk.ActionGroup("my_actions")
+        self.action_group = Gtk.ActionGroup(name="my_actions")
         self.create_actions()
 
         self.uimanager = Gtk.UIManager()
         self.uimanager.insert_action_group(self.action_group)
         self.accelGroup = self.uimanager.get_accel_group()
+        if self.accelGroup and hasattr(self, "window"):
+            self.window.add_accel_group(self.accelGroup)
         self.uimanager.add_ui_from_string(UI_INFO)
 
         self.get_actions_reference()
@@ -3030,7 +3044,7 @@ class NCam(Gtk.VBox):
                     p = path[ptr]
                     if p.tag.lower() in ["menu", "menuitem", "group", "sub"] :
                         name = p.get("name") if "name" in p.keys() else ""
-                        a_menu_item = Gtk.ImageMenuItem(_(name))
+                        a_menu_item = Gtk.ImageMenuItem(label=_(name))
 
                         tooltip = _(p.get("tool_tip")) if "tool_tip" in p.keys() else None
                         if (tooltip is not None) and (tooltip != '') :
@@ -3068,7 +3082,7 @@ class NCam(Gtk.VBox):
                     add_to_menu(menu_add, _p)
 
     def create_treeview(self):
-        self.treeview = Gtk.TreeView(self.treestore)
+        self.treeview = Gtk.TreeView(model=self.treestore)
         self.treeview.set_grid_lines(Gtk.TreeViewGridLines.VERTICAL)
         self.builder.get_object("feat_scrolledwindow").add(self.treeview)
 
@@ -3305,7 +3319,7 @@ class NCam(Gtk.VBox):
 
     def create_actions(self):
         def ca(actionname, stock_id, label, accel, tooltip, callback, *args):
-            act = Gtk.Action(actionname, label, tooltip, stock_id)
+            act = Gtk.Action(name=actionname, label=label, tooltip=tooltip, stock_id=stock_id)
             if callback is not None :
                 act.connect('activate', callback, args)
             if accel is not None :
@@ -3368,11 +3382,19 @@ class NCam(Gtk.VBox):
             ("SideSide", None, _('Side By Side Layout'), None, None, 2)
         ], 1, self.set_layout)
 
-        self.actionHideCol = Gtk.ToggleAction("HideCol", _('Master Value Column Hidden'), _('In master treeview'), None)
+        self.actionHideCol = Gtk.ToggleAction(
+            name="HideCol",
+            label=_('Master Value Column Hidden'),
+            tooltip=_('In master treeview'),
+            stock_id=None)
         self.actionHideCol.connect("toggled", self.set_layout)
         self.action_group.add_action(self.actionHideCol)
 
-        self.actionSubHdrs = Gtk.ToggleAction("SubHdrs", _('Sub-Groups In Master Tree'), _('Sub-Groups In Master Tree'), None)
+        self.actionSubHdrs = Gtk.ToggleAction(
+            name="SubHdrs",
+            label=_('Sub-Groups In Master Tree'),
+            tooltip=_('Sub-Groups In Master Tree'),
+            stock_id=None)
         self.actionSubHdrs.connect("toggled", self.set_layout)
         self.action_group.add_action(self.actionSubHdrs)
 
@@ -3381,7 +3403,11 @@ class NCam(Gtk.VBox):
         self.actionLoadTools = ca("LoadTools", Gtk.STOCK_REFRESH, _("Reload Tool Table"), None, _("Reload Tool Table"), TOOL_TABLE.load_table)
         self.actionPreferences = ca("Preferences", Gtk.STOCK_PREFERENCES, _("Edit Preferences"), None, _("Edit Preferences"), self.action_preferences)
 
-        self.actionAutoRefresh = Gtk.ToggleAction("AutoRefresh", _("Auto-refresh"), _('Auto-refresh LinuxCNC'), None)
+        self.actionAutoRefresh = Gtk.ToggleAction(
+            name="AutoRefresh",
+            label=_("Auto-refresh"),
+            tooltip=_('Auto-refresh LinuxCNC'),
+            stock_id=None)
         self.actionAutoRefresh.set_active(False)
         self.action_group.add_action(self.actionAutoRefresh)
 
@@ -3497,11 +3523,26 @@ class NCam(Gtk.VBox):
         self.get_selected_feature(self.treeview)
         self.action()
 
-    def get_selected_feature(self, widget) :
+    def get_selected_feature(self, treeview, *args) :
         old_selected_feature = self.selected_feature
-        (model, itr) = self.treeview.get_selection().get_selected()
+        (model, treeiter) = treeview.get_selection().get_selected()
 
-        if itr is not None :
+        def to_str(v):
+            # already a proper string
+            if isinstance(v, str):
+                return v
+
+            # bytes, bytearray, GLib.Bytes, etc.
+            try:
+                return bytes(v).decode("utf-8", errors="replace")
+            except Exception:
+                return ""
+
+        self.iter = treeiter
+        self.iter_next = treeiter
+
+        if treeiter is not None :
+            itr = treeiter
 
             self.selected_type = model.get_value(itr, 0).attr.get("type")
             self.hint_label.set_markup(model.get_value(itr, 0).get_tooltip())
@@ -3551,7 +3592,8 @@ class NCam(Gtk.VBox):
             self.iter_next = model.iter_next(itr_p)
             if self.iter_next :
                 self.can_move_down = (self.iter_selected_type == tv_select.feature)
-                s = str(model.get(self.iter_next, 0)[0])
+                val = model.get(self.iter_next, 0)[0]
+                s = to_str(val)
                 self.can_add_to_group = ('type="items"' in s) and \
                         (self.iter_selected_type == tv_select.feature)
             else :
@@ -3659,12 +3701,12 @@ class NCam(Gtk.VBox):
             self.action(xml)
 
     def expand_and_select(self, path):
-        if path is not None :
-            self.treeview.expand_to_path(path)
-            self.treeview.set_cursor(path)
-        else :
-            self.treeview.expand_to_path((0,))
-            self.treeview.set_cursor((0,))
+        if path is None:
+            path = (0,)
+        if not isinstance(path, Gtk.TreePath):
+            path = Gtk.TreePath(path)
+        self.treeview.expand_to_path(path)
+        self.treeview.set_cursor(path)
 
     def action_duplicate(self, *arg) :
         xml = etree.Element(XML_TAG)
@@ -4033,7 +4075,7 @@ class NCam(Gtk.VBox):
                 filename = filechooserdialog.get_filename()
                 if filename[-4] != ".ngc" not in filename :
                     filename += ".ngc"
-                with open(filename, "wb") as f:
+                with open(filename, "w", encoding="utf-8") as f:
                     f.write(self.to_gcode())
                 f.close()
         finally :
@@ -4249,7 +4291,7 @@ class NCam(Gtk.VBox):
 
     def autorefresh_call(self, *arg) :
         fname = os.path.join(NGC_DIR, GENERATED_FILE)
-        with open(fname, "wb") as f:
+        with open(fname, "w", encoding="utf-8") as f:
             f.write(self.to_gcode())
 
         try:
@@ -4960,7 +5002,12 @@ class NCam(Gtk.VBox):
             filechooserdialog.destroy()
 
     def set_actions_sensitives(self):
-        self.actionCollapse.set_sensitive(self.selected_feature is not None)
+        # GTK3: during early startup callbacks, actions may not exist yet
+        act = getattr(self, "actionCollapse", None)
+        if act is not None:
+            act.set_sensitive(self.selected_feature is not None)
+        else:
+            return
 
         self.actionSave.set_sensitive(self.selected_feature is not None)
         self.actionSaveTemplate.set_sensitive(self.selected_feature is not None)
