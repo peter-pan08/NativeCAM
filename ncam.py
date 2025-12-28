@@ -322,6 +322,20 @@ def get_pixbuf(icon, size) :
             PIXBUF_DICT[icon_id] = None
     return None
 
+def validate_catalog_icons(catalog):
+    if catalog is None:
+        return
+    missing = []
+    for node in catalog.findall(".//*[@icon]"):
+        icon = node.get("icon")
+        if not icon:
+            continue
+        if search_path(search_warning.none, icon, GRAPHICS_DIR) is None:
+            missing.append(icon)
+    if missing:
+        missing = sorted(set(missing))
+        mess_dlg(_("Missing icon assets:\n%s") % "\n".join(missing))
+
 def translate(fstring):
     # translate the glade file when testing translation
     txt2 = fstring.split('\n')
@@ -2468,6 +2482,7 @@ class NCam(Gtk.VBox):
         mnu_xml = re.sub(r"_\(", "", mnu_xml)
         mnu_xml = re.sub(r"\)_", "", mnu_xml)
         self.catalog = etree.fromstring(mnu_xml)
+        validate_catalog_icons(self.catalog)
 
         self.pref.read(self.catalog_dir)
         GLOBAL_PREF = self.pref
