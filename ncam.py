@@ -371,7 +371,7 @@ def mess_with_buttons(mess, buttons, title = ""):
     mwb.set_title(title)
     finbox = mwb.get_content_area()
     l = Gtk.Label(mess)
-    finbox.pack_start(l)
+    finbox.pack_start(l, True, True, 0)
     mwb.set_keep_above(True)
     mwb.show_all()
     response = mwb.run()
