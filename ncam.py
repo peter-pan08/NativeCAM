@@ -4230,9 +4230,26 @@ class NCam(Gtk.VBox):
             stat = linuxcnc.stat()
             stat.poll()
             if stat.interp_state == linuxcnc.INTERP_IDLE :
-                try :
-                    tkinter.Tk().tk.call("send", "axis", ("remote", "open_file_name", fname))
-                except tkinter.TclError as detail:
+                axis_error = None
+                tk_root = None
+                if os.environ.get("DISPLAY"):
+                    try:
+                        tk_root = tkinter.Tk()
+                        tk_root.withdraw()
+                        tk_root.tk.call("send", "axis", ("remote", "open_file_name", fname))
+                    except tkinter.TclError as detail:
+                        axis_error = detail
+                    finally:
+                        if tk_root is not None:
+                            tk_root.destroy()
+                else:
+                    axis_error = _("No DISPLAY environment variable set.")
+
+                if axis_error is not None:
+                    if isinstance(axis_error, tkinter.TclError):
+                        mess_dlg(_('Axis remote call failed: %(detail)s') % {'detail': axis_error})
+                    else:
+                        mess_dlg(_('Axis remote call skipped: %(detail)s') % {'detail': axis_error})
                     linuxCNC.reset_interpreter()
                     time.sleep(gmoccapy_time_out)
                     linuxCNC.mode(linuxcnc.MODE_AUTO)
