@@ -21,7 +21,7 @@ from gtk import gdk
 import pango
 from lxml import etree
 import gobject
-import ConfigParser
+import configparser
 import re, os
 import getopt
 import shutil
@@ -29,13 +29,13 @@ import hashlib
 import subprocess
 import webbrowser
 import io
-from cStringIO import StringIO
+from io import StringIO
 import gettext
 import time
 import locale
 import platform
 import pref_edit
-import Tkinter
+import tkinter
 import math
 
 SYS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -78,9 +78,10 @@ gettext.textdomain(APP_NAME)
 try :
     lang = gettext.translation(APP_NAME, nativecam_locale, fallback = True)
     lang.install()
-    _ = lang.ugettext
+    _ = lang.gettext
 except :
-    gettext.install(APP_NAME, None, str = True)
+    gettext.install(APP_NAME, None)
+    _ = gettext.gettext
 
 APP_TITLE = _("NativeCAM for LinuxCNC")
 APP_COMMENTS = _('A GUI to help create LinuxCNC NGC files.')
@@ -1425,7 +1426,7 @@ class Parameter(object) :
     def to_xml(self) :
         xml = etree.Element("param")
         for i in self.attr :
-            xml.set(i, unicode(str(self.attr[i])))
+            xml.set(i, str(self.attr[i]))
         return xml
 
     def get_icon(self, icon_size) :
@@ -1635,7 +1636,7 @@ class Feature(object):
         return _(self.attr["name"]) if "name" in self.attr else _("unname")
 
     def from_src(self, src) :
-        src_config = ConfigParser.ConfigParser()
+        src_config = configparser.ConfigParser()
         uf = io.open(src).read()
         f = str(uf)
 
@@ -1645,7 +1646,7 @@ class Feature(object):
 
         # add "." in the begining of multiline parameters to save indents
         f = re.sub(r"(?m)^(\ |\t)", r"\1.", f)
-        src_config.readfp(io.BytesIO(f))
+        src_config.read_file(StringIO(f))
         # remove "." in the begining of multiline parameters to save indents
         conf = {}
         for section in src_config.sections() :
@@ -1723,7 +1724,7 @@ class Feature(object):
     def to_xml(self) :
         xml = etree.Element("feature")
         for i in self.attr :
-            xml.set(i, unicode(str(self.attr[i])))
+            xml.set(i, str(self.attr[i]))
 
         for p in self.param :
             xml.append(p.to_xml())
@@ -1809,7 +1810,7 @@ class Feature(object):
             redirected_output = StringIO()
             sys.stdout = redirected_output
             sys.stdout = old_stdout
-            redirected_output.reset()
+            redirected_output.seek(0)
             out = str(redirected_output.read())
             return out
 
@@ -1828,8 +1829,12 @@ class Feature(object):
                     res += l[i:] + "\n"
                 s = res
             try :
-                return subprocess.check_output([s], shell = True,
-                                               stderr = subprocess.STDOUT)
+                return subprocess.check_output(
+                    s,
+                    shell = True,
+                    stderr = subprocess.STDOUT,
+                    universal_newlines = True,
+                )
             except subprocess.CalledProcessError as e:
                 msg = _('Error with subprocess: returncode = %(errcode)s\n'
                          'output = %(output)s\n'
@@ -1997,7 +2002,7 @@ class Preferences(object):
         if cat_name is not None :
             self.cat_name = cat_name
 
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
 
         if read_all :
             self.cfg_file = os.path.join(NCAM_DIR, CATALOGS_DIR, CONFIG_FILE)
@@ -2102,7 +2107,7 @@ class Preferences(object):
 
         USER_VALUES = {}
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.cat_name, USER_DEFAULT_FILE)
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(fname)
         USER_SUBROUTINES = config.sections()
         for section in config.sections() :
@@ -2114,7 +2119,7 @@ class Preferences(object):
 
         EXCL_MESSAGES = {}
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.cat_name, EXCL_MSG_FILE)
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(fname)
         for section in config.sections() :
             for key, val in config.items(section) :
@@ -2122,7 +2127,7 @@ class Preferences(object):
 
     def add_excluded_msg(self, ftype, msgid):
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.cat_name, EXCL_MSG_FILE)
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(fname)
 
         if not parser.has_section(ftype) :
@@ -2143,7 +2148,7 @@ class Preferences(object):
             if os.path.isfile(fname) :
                 os.remove(fname)
         else :
-            parser = ConfigParser.ConfigParser()
+            parser = configparser.ConfigParser()
             parser.read(fname)
 
             if parser.has_section(ftype) :
@@ -2156,7 +2161,7 @@ class Preferences(object):
 
     def val_show_none(self, ftype = None) :
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.cat_name, EXCL_MSG_FILE)
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
 
         if ftype is None :
             parser.add_section('ALL')
@@ -3084,7 +3089,7 @@ class NCam(gtk.VBox):
 
     def action_saveUser(self, *arg) :
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.catalog_dir, USER_DEFAULT_FILE)
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(fname)
 
         section = self.selected_feature.get_type()
@@ -3112,7 +3117,7 @@ class NCam(gtk.VBox):
     def action_deleteUser(self, *arg):
         fname = os.path.join(NCAM_DIR, CATALOGS_DIR, self.catalog_dir,
                              USER_DEFAULT_FILE)
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(fname)
 
         section = self.selected_feature.get_type()
@@ -3392,7 +3397,7 @@ class NCam(gtk.VBox):
 
     def action_saveLayout(self, *arg) :
         cfg_file = os.path.join(NCAM_DIR, CATALOGS_DIR, CONFIG_FILE)
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(cfg_file)
 
         if not parser.has_section('layout') :
@@ -4226,8 +4231,8 @@ class NCam(gtk.VBox):
             stat.poll()
             if stat.interp_state == linuxcnc.INTERP_IDLE :
                 try :
-                    Tkinter.Tk().tk.call("send", "axis", ("remote", "open_file_name", fname))
-                except Tkinter.TclError as detail:
+                    tkinter.Tk().tk.call("send", "axis", ("remote", "open_file_name", fname))
+                except tkinter.TclError as detail:
                     linuxCNC.reset_interpreter()
                     time.sleep(gmoccapy_time_out)
                     linuxCNC.mode(linuxcnc.MODE_AUTO)
@@ -4968,9 +4973,9 @@ def verify_ini(fname, ctlog, in_tab) :
         for line in txt2 :
             txt1 += line.lstrip(' \t') + '\n'
 
-        parser = ConfigParser.RawConfigParser()
+        parser = configparser.RawConfigParser()
         try :
-            parser.readfp(io.BytesIO(txt1))
+            parser.read_string(txt1)
 
             dp = parser.get('DISPLAY', 'DISPLAY').lower()
             if dp not in ['gmoccapy', 'axis', 'gscreen'] :
