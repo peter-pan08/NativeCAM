@@ -12,15 +12,11 @@ APP_AUTHORS = ['Fernand Veilleux, maintainer', 'Nick Drobchenko, initiator',
 
 APP_VERSION = "(non deb)"
 
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 import sys
-import pygtk
-pygtk.require('2.0')
-from gtk import gdk
-
-import pango
 from lxml import etree
-import gobject
 import configparser
 import re, os
 import getopt
@@ -47,7 +43,7 @@ decimal_point = locale.localeconv()["decimal_point"]
 DEFAULT_USE_NO_ICON = True
 NO_ICON_FILE = 'no-icon.png'
 
-# info at http://www.pygtk.org/pygtk2reference/pango-markup-language.html
+# info at http://www.pyGtk.org/pygtk2reference/pango-markup-language.html
 # when grayed, uses these format
 gray_header_fmt_str = '<span foreground="gray" style="oblique">%s...</span>'
 gray_sub_header_fmt_str = '<span foreground="gray" style="oblique">%s...</span>'
@@ -317,10 +313,10 @@ def get_pixbuf(icon, size) :
     icon_fname = search_path(search_warning.none, icon, GRAPHICS_DIR)
     if icon_fname is not None :
         try :
-            pix_buf = gdk.pixbuf_new_from_file_at_size(icon_fname, size, size)
+            pix_buf = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_fname, size, size)
             PIXBUF_DICT[icon_id] = pix_buf
             return pix_buf
-        except gdk.PixbufError as err :
+        except GdkPixbuf.PixbufError as err :
             print(err)
             PIXBUF_DICT[icon_id] = None
     return None
@@ -339,27 +335,27 @@ def translate(fstring):
     return fstring
 
 def mess_dlg(mess, title = "NativeCAM"):
-    dlg = gtk.MessageDialog(parent = None,
-        flags = gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-        type = gtk.MESSAGE_WARNING,
-        buttons = gtk.BUTTONS_OK, message_format = '%s' % mess)
+    dlg = Gtk.MessageDialog(parent = None,
+        flags = Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+        type = Gtk.MessageType.WARNING,
+        buttons = Gtk.ButtonsType.OK, message_format = '%s' % mess)
     dlg.set_title(title)
     dlg.set_keep_above(True)
     dlg.run()
     dlg.destroy()
 
 def mess_yesno(mess, title = ""):
-    return mess_with_buttons(mess, (gtk.STOCK_YES, gtk.RESPONSE_YES, \
-                             gtk.STOCK_NO, gtk.RESPONSE_NO), title) == gtk.RESPONSE_YES
+    return mess_with_buttons(mess, (Gtk.STOCK_YES, Gtk.ResponseType.YES, \
+                             Gtk.STOCK_NO, Gtk.ResponseType.NO), title) == Gtk.ResponseType.YES
 
 def mess_with_buttons(mess, buttons, title = ""):
-    mwb = gtk.Dialog(parent = None,
+    mwb = Gtk.Dialog(parent = None,
                      buttons = buttons,
-                     flags = gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                     flags = Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
           )
     mwb.set_title(title)
     finbox = mwb.get_content_area()
-    l = gtk.Label(mess)
+    l = Gtk.Label(mess)
     finbox.pack_start(l)
     mwb.set_keep_above(True)
     mwb.show_all()
@@ -418,10 +414,10 @@ def copy_dir_recursive(fromdir, todir,
                         os.utime(topath, None)  # touch it
                         continue
 
-                    buttons = (gtk.STOCK_YES, gtk.RESPONSE_YES,
-                             gtk.STOCK_NO, gtk.RESPONSE_NO,
-                             gtk.STOCK_REFRESH, gtk.RESPONSE_ACCEPT,
-                             gtk.STOCK_CANCEL, gtk.RESPONSE_NONE)
+                    buttons = (Gtk.STOCK_YES, Gtk.ResponseType.YES,
+                             Gtk.STOCK_NO, Gtk.ResponseType.NO,
+                             Gtk.STOCK_REFRESH, Gtk.ResponseType.ACCEPT,
+                             Gtk.STOCK_CANCEL, Gtk.ResponseType.NONE)
                     msg = (_('\nAn updated system file is available:\n\n%(frompath)s\n\n'
                         'YES     -> Use new system file\n'
                         'NO      -> Keep local file\n'
@@ -432,25 +428,25 @@ def copy_dir_recursive(fromdir, todir,
                                             title = _("NEW file version available"))
 
                     # set copymode
-                    if ans == gtk.RESPONSE_YES :
+                    if ans == Gtk.ResponseType.YES :
                         pass
-                    elif ans == gtk.RESPONSE_ACCEPT :
+                    elif ans == Gtk.ResponseType.ACCEPT :
                         mode = copymode.yes_to_all
-                    elif ans == gtk.RESPONSE_NONE :
+                    elif ans == Gtk.ResponseType.NONE :
                         mode = copymode.no_to_all
-                    elif ans == gtk.RESPONSE_NO :
+                    elif ans == Gtk.ResponseType.NO :
                         pass
                     else :
-                        ans = gtk.RESPONSE_NO  # anything else (window close etc)
+                        ans = Gtk.ResponseType.NO  # anything else (window close etc)
 
                     # copy or touch
-                    if ans == gtk.RESPONSE_YES or mode == copymode.yes_to_all :
+                    if ans == Gtk.ResponseType.YES or mode == copymode.yes_to_all :
                         if verbose:
                             print("copying %s to %s" % (p, todir))
                         shutil.copy(frompath, topath)
                         update_ct += 1
 
-                    if ans == gtk.RESPONSE_NO or mode == copymode.no_to_all :
+                    if ans == Gtk.ResponseType.NO or mode == copymode.no_to_all :
                         os.utime(topath, None)  # touch it (update timestamp)
 
     return mode, update_ct
@@ -544,7 +540,10 @@ def create_M_file() :
     with open(p, 'wb') as f :
         f.write('#!/usr/bin/env python\n# coding: utf-8\n')
 
-        f.write("import gtk\nimport os\nimport pygtk\npygtk.require('2.0')\nfrom gtk import gdk\n\n")
+        f.write("import gi\n")
+        f.write("gi.require_version(\"Gtk\", \"3.0\")\n")
+        f.write("from gi.repository import GdkPixbuf, Gtk\n")
+        f.write("import os\n\n")
 
         f.write("fname = '%s'\n" % os.path.join(NCAM_DIR, CATALOGS_DIR, 'no_skip_dlg.conf'))
         f.write('if os.path.isfile(fname) :\n    exit(0)\n\n')
@@ -553,16 +552,16 @@ def create_M_file() :
         f.write("msg1 = '%s'\n" % _('Skip block not active'))
         f.write("icon_fname = '%s'\n\n" % os.path.join(NCAM_DIR, GRAPHICS_DIR, 'skip_block.png'))
 
-        f.write('dlg = gtk.MessageDialog(parent = None, flags = gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT, type = gtk.MESSAGE_WARNING, buttons = gtk.BUTTONS_NONE, message_format = msg1)\n\n')
+        f.write('dlg = Gtk.MessageDialog(parent = None, flags = Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT, type = Gtk.MessageType.WARNING, buttons = Gtk.ButtonsType.NONE, message_format = msg1)\n\n')
 
         f.write("dlg.set_title('NativeCAM')\ndlg.format_secondary_markup(msg)\n\n")
 
-        f.write('dlg.set_image(gtk.Image())\n')
-        f.write('dlg.get_image().set_from_pixbuf(gdk.pixbuf_new_from_file_at_size(icon_fname, 80, 80))\n\n')
+        f.write('dlg.set_image(Gtk.Image())\n')
+        f.write('dlg.get_image().set_from_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_size(icon_fname, 80, 80))\n\n')
 
-        f.write('cb = gtk.CheckButton(label = "%s")\n' % _("Do not show again"))
+        f.write('cb = Gtk.CheckButton(label = "%s")\n' % _("Do not show again"))
         f.write('dlg.get_content_area().pack_start(cb, True, True, 0)\n')
-        f.write('dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK).grab_focus()\n\n')
+        f.write('dlg.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK).grab_focus()\n\n')
 
         f.write('dlg.set_keep_above(True)\ndlg.show_all()\n\ndlg.run()\n')
         f.write("if cb.get_active() :\n    open(fname, 'w').close()\n")
@@ -636,49 +635,52 @@ class Tools(object):
 class VKB(object):
 
     def __init__(self, toplevel, tooltip, min_value, max_value, data_type, convertible) :
-        self.dlg = gtk.Dialog(parent = toplevel)
+        self.dlg = Gtk.Dialog(parent = toplevel)
         self.dlg.set_decorated(False)
         self.dlg.set_transient_for(None)
         self.dlg.set_border_width(3)
         self.dlg.set_property("skip-taskbar-hint", True)
 
-        lbl = gtk.Label('')
+        lbl = Gtk.Label('')
         lbl.set_line_wrap(True)
         self.dlg.vbox.pack_start(lbl, expand = False)
         lbl.set_markup(tooltip)
 
-        self.entry = gtk.Label('')
-        self.entry.modify_font(pango.FontDescription('sans 14'))
+        self.entry = Gtk.Label('')
+        self.entry.modify_font(Pango.FontDescription('sans 14'))
         self.entry.set_alignment(1.0, 0.5)
-        self.entry.set_property('ellipsize', pango.ELLIPSIZE_START)
+        self.entry.set_property('ellipsize', Pango.EllipsizeMode.START)
 
         self.min_value = min_value
         self.max_value = max_value
         self.data_type = data_type
         self.convertible_units = convertible
 
-        box = gtk.EventBox()
-        box.modify_bg(gtk.STATE_NORMAL, gtk.gdk.Color('#FFFFFF'))
+        box = Gtk.EventBox()
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"#vkb-entry { background-color: #FFFFFF; }")
+        box.set_name("vkb-entry")
+        box.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         box.add(self.entry)
-        frame = gtk.Frame()
+        frame = Gtk.Frame()
         frame.add(box)
 
-        tbl = gtk.Table(rows = 6, columns = 5, homogeneous = True)
+        tbl = Gtk.Table(rows = 6, columns = 5, homogeneous = True)
         tbl.attach(frame, 0, 5, 0, 1,
-                   xoptions = gtk.EXPAND | gtk.FILL,
-                   yoptions = gtk.EXPAND | gtk.FILL)
+                   xoptions = Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL,
+                   yoptions = Gtk.AttachOptions.EXPAND | Gtk.AttachOptions.FILL)
 
         self.dlg.vbox.pack_start(tbl)
 
-        btn = gtk.Button(_('BS'))
+        btn = Gtk.Button(_('BS'))
         btn.connect("clicked", self.input, 'BS')
         btn.set_can_focus(False)
         tbl.attach(btn, 4, 5, 2, 3)
 
         i = 0
         for lbl in ['F2', 'Pi', '()', '=', 'C'] :
-            btn = gtk.Button(lbl)
+            btn = Gtk.Button(lbl)
             btn.connect("clicked", self.input, lbl)
             btn.set_can_focus(False)
             tbl.attach(btn, i, i + 1, 1, 2)
@@ -686,7 +688,7 @@ class VKB(object):
 
         i = 2
         for lbl in ['/', '*', '-', '+'] :
-            btn = gtk.Button(lbl)
+            btn = Gtk.Button(lbl)
             btn.connect("clicked", self.input, lbl)
             btn.set_can_focus(False)
             tbl.attach(btn, 3, 4, i, i + 1)
@@ -697,13 +699,13 @@ class VKB(object):
             k = k - 3
             for j in range(0, 3):
                 lbl = str(k + j)
-                btn = gtk.Button(lbl)
+                btn = Gtk.Button(lbl)
                 btn.connect("clicked", self.input, lbl)
                 btn.set_can_focus(False)
                 tbl.attach(btn, j, j + 1, i, i + 1)
 
         if (self.min_value < 0.0) :
-            btn = gtk.Button('+/-')
+            btn = Gtk.Button('+/-')
             btn.connect("clicked", self.input, '+/-')
             btn.set_can_focus(False)
             tbl.attach(btn, 2, 3, 5, 6)
@@ -712,19 +714,19 @@ class VKB(object):
             last_col = 3
 
         if self.data_type == 'float' :  # and get_int(self.digits) > 0 :
-            btn = gtk.Button(decimal_point)
+            btn = Gtk.Button(decimal_point)
             btn.connect("clicked", self.input, decimal_point)
             btn.set_can_focus(False)
             tbl.attach(btn, last_col - 1, last_col, 5, 6)
             last_col = last_col - 1
 
-        btn = gtk.Button('0')
+        btn = Gtk.Button('0')
         btn.connect("clicked", self.input, '0')
         btn.set_can_focus(False)
         tbl.attach(btn, 0, last_col, 5, 6)
 
-        btn = gtk.Button()
-        img = gtk.Image()
+        btn = Gtk.Button()
+        img = Gtk.Image()
         img.set_from_stock('gtk-cancel', menu_icon_size)
         btn.set_image(img)
         btn.connect("clicked", self.cancel)
@@ -732,16 +734,16 @@ class VKB(object):
         tbl.attach(btn, 4, 5, 3, 4)
 
         if self.convertible_units :
-            btn = gtk.Button()
-            img = gtk.Image()
+            btn = Gtk.Button()
+            img = Gtk.Image()
             img.set_from_pixbuf(get_pixbuf('mm2in.png', treeview_icon_size))
             btn.set_image(img)
             btn.connect("clicked", self.input, 'CV')
             btn.set_can_focus(False)
             tbl.attach(btn, 4, 5, 4, 5)
 
-        self.OKbtn = gtk.Button()
-        img = gtk.Image()
+        self.OKbtn = Gtk.Button()
+        img = Gtk.Image()
         img.set_from_stock('gtk-ok', menu_icon_size)
         self.OKbtn.set_image(img)
         self.OKbtn.connect("clicked", self.ok)
@@ -776,7 +778,7 @@ class VKB(object):
             self.convert_units = False
             self.OKbtn.grab_focus()
             response = self.dlg.run()
-            if response == gtk.RESPONSE_OK:
+            if response == Gtk.ResponseType.OK:
                 if self.entry.get_text() in ['', self.not_allowed_msg, self.err_msg] :
                     self.entry.set_markup('<b>0</b>')
                 is_good, rval = self.compute(self.entry.get_text())
@@ -866,7 +868,7 @@ class VKB(object):
 
         elif data == 'CV' :
             self.convert_units = True
-            self.dlg.response(gtk.RESPONSE_OK)
+            self.dlg.response(Gtk.ResponseType.OK)
 
         elif data == '+/-' :
             if lbl == '0' :
@@ -923,8 +925,8 @@ class VKB(object):
                 self.entry.set_markup('<b>%s%s</b>' % (lbl, data))
 
     def key_press_event(self, win, event):
-        if event.type == gdk.KEY_PRESS:
-            k_name = gdk.keyval_name(event.keyval)
+        if event.type == Gdk.EventType.KEY_PRESS:
+            k_name = Gdk.keyval_name(event.keyval)
 #            print(k_name)
             if ((k_name >= 'KP_0' and k_name <= 'KP_9') or \
                     (k_name >= '0' and k_name <= '9')) :
@@ -951,20 +953,20 @@ class VKB(object):
             elif k_name == 'BackSpace' :
                 self.input(None, 'BS')
             elif k_name in ['KP_Enter', 'Return', 'space']:
-                self.dlg.response(gtk.RESPONSE_OK)
+                self.dlg.response(Gtk.ResponseType.OK)
 
     def ok(self, btn):
         self.convert_units = False
-        self.dlg.response(gtk.RESPONSE_OK)
+        self.dlg.response(Gtk.ResponseType.OK)
 
     def cancel(self, btn):
-        self.dlg.response(gtk.RESPONSE_CANCEL)
+        self.dlg.response(Gtk.ResponseType.CANCEL)
 
     def focus_out(self, widget, event):
         if vkb_cancel_on_out:
-            self.dlg.response(gtk.RESPONSE_CANCEL)
+            self.dlg.response(Gtk.ResponseType.CANCEL)
         else :
-            self.dlg.response(gtk.RESPONSE_OK)
+            self.dlg.response(Gtk.ResponseType.OK)
 
     def compute(self, input_string):
         while input_string.count('(') > input_string.count(')') :
@@ -995,10 +997,10 @@ class VKB(object):
         self.dlg = None
 
 
-class CellRendererMx(gtk.CellRendererText):
+class CellRendererMx(Gtk.CellRendererText):
 
     def __init__(self, treeview) :
-        gtk.CellRendererText.__init__(self)
+        Gtk.CellRendererText.__init__(self)
         self.set_property('xpad', 2)
         self.set_property("wrap-mode", 2)
         self.set_property("editable", True)
@@ -1073,7 +1075,7 @@ class CellRendererMx(gtk.CellRendererText):
         return self.tv
 
     def do_get_size(self, widget, cell_area):
-        return (gtk.CellRendererText.do_get_size(self, widget, cell_area))
+        return (Gtk.CellRendererText.do_get_size(self, widget, cell_area))
 
     def edit_number(self, time_out = 0.05) :
 
@@ -1081,7 +1083,7 @@ class CellRendererMx(gtk.CellRendererText):
                  self.editdata_type, self.convertible_units) as vkb :
 
             tree_x, tree_y = self.tv.get_bin_window().get_origin()
-            tree_w, tree_h = self.tv.window.get_geometry()[2:4]
+            tree_w, tree_h = self.tv.get_window().get_geometry()[2:4]
 
             vkb.dlg.set_size_request(vkb_width, vkb_height)
             vkb.dlg.resize(vkb_width, vkb_height)
@@ -1110,23 +1112,23 @@ class CellRendererMx(gtk.CellRendererText):
             return vkb.run(self.not_allowed)
 
     def edit_list(self, time_out = 0.05):
-        self.list_window = gtk.Dialog(parent = self.tv.get_toplevel())
+        self.list_window = Gtk.Dialog(parent = self.tv.get_toplevel())
         self.list_window.set_border_width(0)
         self.list_window.set_decorated(False)
         self.list_window.set_transient_for(None)
         self.list_window.set_property("skip-taskbar-hint", True)
-        vp = gtk.Viewport()
-        vp.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        vp = Gtk.Viewport()
+        vp.set_shadow_type(Gtk.ShadowType.ETCHED_IN)
         self.list_window.vbox.add(vp)
-        sw = gtk.ScrolledWindow()
-        sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         vp.add(sw)
 
         self.list_window.realize()
         self.list_window.resize(1, 1)
         lw, base_height = self.list_window.get_size()
 
-        ls = gtk.ListStore(str, str)
+        ls = Gtk.ListStore(str, str)
         active_row = 0
         count = 0
         for option in self.options.split(":") :
@@ -1136,11 +1138,11 @@ class CellRendererMx(gtk.CellRendererText):
                 active_row = count
             count += 1
 
-        ls_view = gtk.TreeView(ls)
+        ls_view = Gtk.TreeView(ls)
         ls_view.set_headers_visible(False)
-        tvcolumn = gtk.TreeViewColumn('Column 0')
+        tvcolumn = Gtk.TreeViewColumn('Column 0')
         ls_view.append_column(tvcolumn)
-        rdr = gtk.CellRendererText()
+        rdr = Gtk.CellRendererText()
         row_height = self.cell_area.height - 4
         rdr.set_fixed_size(self.cell_area.width, row_height)
         tvcolumn.pack_start(rdr, True)
@@ -1177,14 +1179,14 @@ class CellRendererMx(gtk.CellRendererText):
         return response, new_val
 
     def edit_string(self, time_out = 0.05):
-        self.stringedit_window = gtk.Dialog(parent = self.tv.get_toplevel())
+        self.stringedit_window = Gtk.Dialog(parent = self.tv.get_toplevel())
         self.stringedit_window.hide()
         self.stringedit_window.set_decorated(False)
         self.stringedit_window.set_transient_for(None)
         self.stringedit_window.set_border_width(0)
         self.stringedit_window.set_property("skip-taskbar-hint", True)
 
-        self.stringedit_entry = gtk.Entry()
+        self.stringedit_entry = Gtk.Entry()
         self.stringedit_window.vbox.add(self.stringedit_entry)
         self.stringedit_entry.set_editable(True)
 
@@ -1192,7 +1194,7 @@ class CellRendererMx(gtk.CellRendererText):
 
         # position the popup on the edited cell
         (tree_x, tree_y) = self.tv.get_bin_window().get_origin()
-        (tree_w, tree_h) = self.tv.window.get_geometry()[2:4]
+        (tree_w, tree_h) = self.tv.get_window().get_geometry()[2:4]
         x = tree_x + self.cell_area.x
         y = tree_y + self.cell_area.y
         self.stringedit_window.move(x - 4, y - 2)
@@ -1212,15 +1214,15 @@ class CellRendererMx(gtk.CellRendererText):
         return response, new_val
 
     def list_keypress(self, widget, event) :
-        keyname = gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(event.keyval)
         if keyname in ["Return", "KP_Enter", "space"] :
-            self.list_window.response(gtk.RESPONSE_OK)
+            self.list_window.response(Gtk.ResponseType.OK)
 
     def list_out(self, widget, event):
-        self.list_window.response(gtk.RESPONSE_CANCEL)
+        self.list_window.response(Gtk.ResponseType.CANCEL)
 
     def list_btn_released(self, widget, event):
-        self.list_window.response(gtk.RESPONSE_OK)
+        self.list_window.response(Gtk.ResponseType.OK)
 
     def do_start_editing(self, event, treeview, path, background_area, \
                         cell_area, flags):
@@ -1247,7 +1249,7 @@ class CellRendererMx(gtk.CellRendererText):
 
         if self.editdata_type in NUMBER_TYPES :
             response, result = self.edit_number()
-            if response == gtk.RESPONSE_OK :
+            if response == Gtk.ResponseType.OK :
                 self.edited(self, path, result)
             return None
 
@@ -1264,13 +1266,13 @@ class CellRendererMx(gtk.CellRendererText):
         elif self.editdata_type in ['combo-user', 'combo', 'tool']:
             self.inputKey = ''
             response, result = self.edit_list()
-            if response == gtk.RESPONSE_OK :
+            if response == Gtk.ResponseType.OK :
                 self.edited(self, path, result)
             return None
 
         elif self.editdata_type in ['string', 'gcode'] :
             response, result = self.edit_string()
-            if response == gtk.RESPONSE_OK :
+            if response == Gtk.ResponseType.OK :
                 self.edited(self, path, result)
             return None
 
@@ -1278,12 +1280,12 @@ class CellRendererMx(gtk.CellRendererText):
             if self.inputKey > '' :
                 self.inputKey = ''
 
-            filechooserdialog = gtk.FileChooserDialog(_("Open"), None,
-                     gtk.FILE_CHOOSER_ACTION_OPEN,
-                     (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
-                     gtk.STOCK_OK, gtk.RESPONSE_OK))
+            filechooserdialog = Gtk.FileChooserDialog(_("Open"), None,
+                     Gtk.FileChooserAction.OPEN,
+                     (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                     Gtk.STOCK_OK, Gtk.ResponseType.OK))
             try:
-                filt = gtk.FileFilter()
+                filt = Gtk.FileFilter()
                 filt.set_name(self.filter_name)
 
                 for option in self.mime_type.split(":") :
@@ -1295,7 +1297,7 @@ class CellRendererMx(gtk.CellRendererText):
                 filechooserdialog.add_filter(filt)
                 filechooserdialog.set_keep_above(True)
 
-                filt = gtk.FileFilter()
+                filt = Gtk.FileFilter()
                 filt.set_name(_("All files"))
                 filt.add_pattern("*")
                 filechooserdialog.add_filter(filt)
@@ -1306,7 +1308,7 @@ class CellRendererMx(gtk.CellRendererText):
                     filechooserdialog.set_current_folder(os.getcwd())
 
                 response = filechooserdialog.run()
-                if response == gtk.RESPONSE_OK:
+                if response == Gtk.ResponseType.OK:
                     self.edited(self, path, filechooserdialog.get_filename())
             finally:
                 filechooserdialog.destroy()
@@ -1316,32 +1318,32 @@ class CellRendererMx(gtk.CellRendererText):
             self.selection = treeview.get_selection()
             self.treestore, self.treeiter = self.selection.get_selected()
 
-            self.textedit_window = gtk.Dialog(parent = treeview.get_toplevel())
+            self.textedit_window = Gtk.Dialog(parent = treeview.get_toplevel())
             self.textedit_window.set_decorated(False)
             self.textedit_window.set_transient_for(None)
             self.textedit_window.set_property("skip-taskbar-hint", True)
 
-            self.textedit = gtk.TextView()
+            self.textedit = Gtk.TextView()
             self.textedit.set_editable(True)
             self.textbuffer = self.textedit.get_buffer()
-            self.textedit.set_wrap_mode(gtk.WRAP_WORD)
+            self.textedit.set_wrap_mode(Gtk.WrapMode.WORD)
             self.textbuffer.set_property('text', self.get_property('text'))
 
             self.textedit_window.connect('key-press-event', self.text_edit_keyhandler)
             self.textedit_window.connect('focus-out-event', self.text_edit_focus_out, path)
 
-            scrolled_window = gtk.ScrolledWindow()
-            scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+            scrolled_window = Gtk.ScrolledWindow()
+            scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
             scrolled_window.add(self.textedit)
             self.textedit_window.vbox.add(scrolled_window)
             self.textedit_window.realize()
 
             # position the popup on the edited cell within the treeview
-            (tree_x, a) = treeview.window.get_origin()
+            (tree_x, a) = treeview.get_window().get_origin()
             (a, tree_y) = treeview.get_bin_window().get_origin()
-            (tree_w, tree_h) = treeview.window.get_geometry()[2:4]
-            (t_w, t_h) = self.textedit_window.window.get_geometry()[2:4]
+            (tree_w, tree_h) = treeview.get_window().get_geometry()[2:4]
+            (t_w, t_h) = self.textedit_window.get_window().get_geometry()[2:4]
             y = tree_y + min(cell_area.y, tree_h - t_h +
                              treeview.get_visible_rect().y)
 
@@ -1350,7 +1352,7 @@ class CellRendererMx(gtk.CellRendererText):
             self.textedit_window.show_all()
 
             response = self.textedit_window.run()
-            if response == gtk.RESPONSE_OK:
+            if response == Gtk.ResponseType.OK:
                 (iter_first, iter_last) = self.textbuffer.get_bounds()
                 text = self.textbuffer.get_text(iter_first, iter_last)
                 self.edited(self, path, text)
@@ -1359,40 +1361,38 @@ class CellRendererMx(gtk.CellRendererText):
             self.refresh_fn(self.tv)
             return None
 
-    def do_render(self, win, widget, background_area, cell_area,
-                  expose_area, flags):
+    def do_render(self, cr, widget, background_area, cell_area, flags):
         if self.data_type in ['bool', 'boolean'] :
             cell_area.width = 30
-            chk = gtk.CellRendererToggle()
+            chk = Gtk.CellRendererToggle()
             chk.set_active(self.param_value == '1')
-            chk.render(win, widget, background_area, cell_area,
-                       expose_area, flags)
+            chk.render(cr, widget, background_area, cell_area, flags)
         else :
-            gtk.CellRendererText.do_render(self, win, widget,
+            Gtk.CellRendererText.do_render(self, cr, widget,
                                            background_area,
-                                           cell_area, expose_area, flags)
+                                           cell_area, flags)
 
     def string_edit_focus_out(self, widget, event):
-        self.stringedit_window.response(gtk.RESPONSE_OK)
+        self.stringedit_window.response(Gtk.ResponseType.OK)
 
     def string_edit_keyhandler(self, widget, event):
-        keyname = gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(event.keyval)
         if keyname in ['Return', 'KP_Enter']:
-            self.stringedit_window.response(gtk.RESPONSE_OK)
+            self.stringedit_window.response(Gtk.ResponseType.OK)
 
     def text_edit_focus_out(self, widget, event, path):
-        self.textedit_window.response(gtk.RESPONSE_OK)
+        self.textedit_window.response(Gtk.ResponseType.OK)
 
     def text_edit_keyhandler(self, widget, event):
-        keyname = gdk.keyval_name(event.keyval)
-        if gdk.keyval_name(event.keyval) in ['Return', 'KP_Enter'] :
-            if event.state & (gdk.SHIFT_MASK | gdk.CONTROL_MASK) :
+        keyname = Gdk.keyval_name(event.keyval)
+        if Gdk.keyval_name(event.keyval) in ['Return', 'KP_Enter'] :
+            if event.state & (Gdk.ModifierType.SHIFT_MASK | Gdk.ModifierType.CONTROL_MASK) :
                 pass
             else :
                 event.keyval = 0
-                self.textedit_window.response(gtk.RESPONSE_OK)
+                self.textedit_window.response(Gtk.ResponseType.OK)
 
-gobject.type_register(CellRendererMx)
+GObject.type_register(CellRendererMx)
 
 class Parameter(object) :
     def __init__(self, ini = None, ini_id = None, xml = None) :
@@ -1912,19 +1912,19 @@ class Feature(object):
             return
 
         # create dialog with image and checkbox
-        dlg = gtk.MessageDialog(parent = None,
-            flags = gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-            type = gtk.MESSAGE_WARNING,
-            buttons = gtk.BUTTONS_NONE,
+        dlg = Gtk.MessageDialog(parent = None,
+            flags = Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            type = Gtk.MessageType.WARNING,
+            buttons = Gtk.ButtonsType.NONE,
             message_format = self.get_name())
         dlg.set_title('NativeCAM')
         dlg.format_secondary_text(msg)
-        img = gtk.Image()
+        img = Gtk.Image()
         img.set_from_pixbuf(self.get_icon(add_dlg_icon_size))
         dlg.set_image(img)
-        cb = gtk.CheckButton(label = _("Do not show again"))
+        cb = Gtk.CheckButton(label = _("Do not show again"))
         dlg.get_content_area().pack_start(cb, True, True, 0)
-        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK).grab_focus()
+        dlg.add_button(Gtk.STOCK_OK, Gtk.ResponseType.OK).grab_focus()
 
         dlg.set_keep_above(True)
         dlg.show_all()
@@ -2285,7 +2285,7 @@ class Preferences(object):
 
         self.default += _('\n(sub definitions)\n')
 
-class NCam(gtk.VBox):
+class NCam(Gtk.VBox):
     __gtype_name__ = "NCam"
     __gproperties__ = {}
     __gproperties = __gproperties__
@@ -2464,8 +2464,8 @@ class NCam(gtk.VBox):
         GLOBAL_PREF = self.pref
 
         # main_window
-        gtk.VBox.__init__(self, *a, **kw)
-        self.builder = gtk.Builder()
+        Gtk.VBox.__init__(self, *a, **kw)
+        self.builder = Gtk.Builder()
         try :
             gf = io.open(os.path.join(SYS_DIR, "ncam.glade")).read()
         except IOError as reason :
@@ -2485,7 +2485,7 @@ class NCam(gtk.VBox):
         self.on_scale_change_value(self)
 
         # create treestore and treeview
-        self.treestore = gtk.TreeStore(object, str, bool, bool)
+        self.treestore = Gtk.TreeStore(object, str, bool, bool)
         self.master_filter = self.treestore.filter_new()
 
         self.details_filter = self.treestore.filter_new()
@@ -2494,10 +2494,10 @@ class NCam(gtk.VBox):
         self.create_treeview()
 
         # create actions, uimanager and add menu and toolbars
-        self.action_group = gtk.ActionGroup("my_actions")
+        self.action_group = Gtk.ActionGroup("my_actions")
         self.create_actions()
 
-        self.uimanager = gtk.UIManager()
+        self.uimanager = Gtk.UIManager()
         self.uimanager.insert_action_group(self.action_group)
         self.accelGroup = self.uimanager.get_accel_group()
         self.uimanager.add_ui_from_string(UI_INFO)
@@ -2532,7 +2532,7 @@ class NCam(gtk.VBox):
 
         self.feature_pane.set_size_request(int(self.tv_w_adj.get_value()), 100)
 
-        self.clipboard = gtk.clipboard_get(gdk.SELECTION_CLIPBOARD)
+        self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         self.edit_menu_activate()
         self.treeview.grab_focus()
         self.show_not_connected = True
@@ -2650,28 +2650,28 @@ class NCam(gtk.VBox):
             if imgfile == None :
                 mi.set_image(_action.create_icon(menu_icon_size))
             else :
-                img = gtk.Image()
+                img = Gtk.Image()
                 img.set_from_pixbuf(get_pixbuf(imgfile, add_menu_icon_size))
                 mi.set_image(img)
             return mi
 
         if self.menubar is not None :
             self.menubar.destroy()
-        self.menubar = gtk.MenuBar()
+        self.menubar = Gtk.MenuBar()
 
 #        a = create_mi(self.actionOpen)
 #        a.destroy
 
         # Projects menu
-        file_menu = gtk.Menu()
+        file_menu = Gtk.Menu()
         file_menu.append(create_mi(self.actionNew))
         file_menu.append(create_mi(self.actionOpen))
         file_menu.append(create_mi(self.actionOpenExample))
-        file_menu.append(gtk.SeparatorMenuItem())
+        file_menu.append(Gtk.SeparatorMenuItem())
         file_menu.append(create_mi(self.actionSave))
         file_menu.append(create_mi(self.actionCurrent))
         file_menu.append(create_mi(self.actionSaveTemplate))
-        file_menu.append(gtk.SeparatorMenuItem())
+        file_menu.append(Gtk.SeparatorMenuItem())
         file_menu.append(create_mi(self.actionSaveNGC))
 
         f_menu = create_mi(self.actionProject)
@@ -2679,29 +2679,29 @@ class NCam(gtk.VBox):
         self.menubar.append(f_menu)
 
         # Edit menu
-        ed_menu = gtk.Menu()
+        ed_menu = Gtk.Menu()
         ed_menu.append(create_mi(self.actionUndo))
         ed_menu.append(create_mi(self.actionRedo))
-        ed_menu.append(gtk.SeparatorMenuItem())
+        ed_menu.append(Gtk.SeparatorMenuItem())
 
         ed_menu.append(create_mi(self.actionCut))
         ed_menu.append(create_mi(self.actionCopy))
         ed_menu.append(create_mi(self.actionPaste))
-        ed_menu.append(gtk.SeparatorMenuItem())
+        ed_menu.append(Gtk.SeparatorMenuItem())
 
         ed_menu.append(create_mi(self.actionAdd))
         ed_menu.append(create_mi(self.actionDuplicate))
         ed_menu.append(create_mi(self.actionDelete))
-        ed_menu.append(gtk.SeparatorMenuItem())
+        ed_menu.append(Gtk.SeparatorMenuItem())
 
         ed_menu.append(create_mi(self.actionMoveUp))
         ed_menu.append(create_mi(self.actionMoveDown))
-        ed_menu.append(gtk.SeparatorMenuItem())
+        ed_menu.append(Gtk.SeparatorMenuItem())
 
         ed_menu.append(create_mi(self.actionAppendItm))
         ed_menu.append(create_mi(self.actionRemoveItm))
 
-        self.sep1 = gtk.SeparatorMenuItem()
+        self.sep1 = Gtk.SeparatorMenuItem()
         ed_menu.append(self.sep1)
         self.adt_mi = create_mi(self.actionDataType)
         ed_menu.append(self.adt_mi)
@@ -2713,19 +2713,19 @@ class NCam(gtk.VBox):
         self.menubar.append(edit_menu)
 
         # View menu
-        v_menu = gtk.Menu()
+        v_menu = Gtk.Menu()
         self.aren_mi = create_mi(self.actionRename)
         v_menu.append(self.aren_mi)
         self.agrp_mi = create_mi(self.actionChngGrp)
         v_menu.append(self.agrp_mi)
-        self.sep3 = gtk.SeparatorMenuItem()
+        self.sep3 = Gtk.SeparatorMenuItem()
         v_menu.append(self.sep3)
         v_menu.append(self.actionHideField.create_menu_item())
         v_menu.append(self.actionShowF.create_menu_item())
-        self.sep2 = gtk.SeparatorMenuItem()
+        self.sep2 = Gtk.SeparatorMenuItem()
         v_menu.append(self.sep2)
 
-        digits_menu = gtk.Menu()
+        digits_menu = Gtk.Menu()
         digits_menu.append(create_mi(self.actionDigit1))
         digits_menu.append(create_mi(self.actionDigit2))
         digits_menu.append(create_mi(self.actionDigit3))
@@ -2736,16 +2736,16 @@ class NCam(gtk.VBox):
         self.d_menu.set_submenu(digits_menu)
         v_menu.append(self.d_menu)
 
-        v_menu.append(gtk.SeparatorMenuItem())
+        v_menu.append(Gtk.SeparatorMenuItem())
         v_menu.append(self.actionSingleView.create_menu_item())
         v_menu.append(self.actionDualView.create_menu_item())
-        v_menu.append(gtk.SeparatorMenuItem())
+        v_menu.append(Gtk.SeparatorMenuItem())
         v_menu.append(self.actionTopBottom.create_menu_item())
         v_menu.append(self.actionSideSide.create_menu_item())
-        v_menu.append(gtk.SeparatorMenuItem())
+        v_menu.append(Gtk.SeparatorMenuItem())
         v_menu.append(self.actionHideCol.create_menu_item())
         v_menu.append(self.actionSubHdrs.create_menu_item())
-        v_menu.append(gtk.SeparatorMenuItem())
+        v_menu.append(Gtk.SeparatorMenuItem())
         v_menu.append(create_mi(self.actionSaveLayout))
 
         view_menu = create_mi(self.actionViewMenu)
@@ -2753,9 +2753,9 @@ class NCam(gtk.VBox):
         self.menubar.append(view_menu)
 
         # Add menu
-        menuAdd = gtk.Menu()
+        menuAdd = Gtk.Menu()
         self.add_catalog_items(menuAdd)
-        menuAdd.append(gtk.SeparatorMenuItem())
+        menuAdd.append(Gtk.SeparatorMenuItem())
         menuAdd.append(create_mi(self.actionLoadCfg))
         menuAdd.append(create_mi(self.actionImportXML))
 
@@ -2764,22 +2764,22 @@ class NCam(gtk.VBox):
         self.menubar.append(add_menu)
 
         # Utilities menu
-        menu_utils = gtk.Menu()
+        menu_utils = Gtk.Menu()
 
         menu_utils.append(self.actionChUnits.create_menu_item())
         menu_utils.append(self.actionAutoRefresh.create_menu_item())
-        menu_utils.append(gtk.SeparatorMenuItem())
+        menu_utils.append(Gtk.SeparatorMenuItem())
         menu_utils.append(create_mi(self.actionLoadTools))
-        menu_utils.append(gtk.SeparatorMenuItem())
+        menu_utils.append(Gtk.SeparatorMenuItem())
         menu_utils.append(create_mi(self.actionSaveUser))
         menu_utils.append(create_mi(self.actionDeleteUser))
 
-        menu_utils.append(gtk.SeparatorMenuItem())
+        menu_utils.append(Gtk.SeparatorMenuItem())
 
-        menu_val = gtk.Menu()
+        menu_val = Gtk.Menu()
         menu_val.append(create_mi(self.actionValAllDlg))
         menu_val.append(create_mi(self.actionValNoDlg))
-        menu_val.append(gtk.SeparatorMenuItem())
+        menu_val.append(Gtk.SeparatorMenuItem())
         menu_val.append(create_mi(self.actionValFeatDlg))
         menu_val.append(create_mi(self.actionValFeatNone))
 
@@ -2787,7 +2787,7 @@ class NCam(gtk.VBox):
         u_menu.set_submenu(menu_val)
         menu_utils.append(u_menu)
 
-        menu_utils.append(gtk.SeparatorMenuItem())
+        menu_utils.append(Gtk.SeparatorMenuItem())
         menu_utils.append(create_mi(self.actionPreferences))
 
         u_menu = create_mi(self.actionUtilMenu)
@@ -2795,20 +2795,20 @@ class NCam(gtk.VBox):
         self.menubar.append(u_menu)
 
         # Help menu
-        menu_help = gtk.Menu()
+        menu_help = Gtk.Menu()
         menu_help.append(create_mi(self.actionYouTube, "youtube.png"))
 #        menu_help.append(create_mi(self.actionYouTrans, "youtube.png"))
-        menu_help.append(gtk.SeparatorMenuItem())
+        menu_help.append(Gtk.SeparatorMenuItem())
         menu_help.append(create_mi(self.actionCNCHome, "linuxcncicon.png",))
         menu_help.append(create_mi(self.actionForum, "linuxcncicon.png",))
-        menu_help.append(gtk.SeparatorMenuItem())
+        menu_help.append(Gtk.SeparatorMenuItem())
         menu_help.append(create_mi(self.actionAbout))
 
         h_menu = create_mi(self.actionHelpMenu)
         h_menu.set_submenu(menu_help)
         self.menubar.append(h_menu)
 
-        self.mnu_current_project = gtk.MenuItem(label = '')
+        self.mnu_current_project = Gtk.MenuItem(label = '')
         self.menubar.append(self.mnu_current_project)
 
         self.main_box.pack_start(self.menubar, False, False, 0)
@@ -2928,7 +2928,7 @@ class NCam(gtk.VBox):
         self.nc_toolbar.set_sensitive(True)
 
     def create_add_dialog(self):
-        self.icon_store = gtk.ListStore(gdk.Pixbuf, str, str, str, int, str)
+        self.icon_store = Gtk.ListStore(GdkPixbuf.Pixbuf, str, str, str, int, str)
         self.add_iconview.set_model(self.icon_store)
         self.add_iconview.set_pixbuf_column(0)
         self.add_iconview.set_text_column(2)
@@ -3004,7 +3004,7 @@ class NCam(gtk.VBox):
                     p = path[ptr]
                     if p.tag.lower() in ["menu", "menuitem", "group", "sub"] :
                         name = p.get("name") if "name" in p.keys() else ""
-                        a_menu_item = gtk.ImageMenuItem(_(name))
+                        a_menu_item = Gtk.ImageMenuItem(_(name))
 
                         tooltip = _(p.get("tool_tip")) if "tool_tip" in p.keys() else None
                         if (tooltip is not None) and (tooltip != '') :
@@ -3012,7 +3012,7 @@ class NCam(gtk.VBox):
 
                         icon = p.get('icon')
                         if icon is not None :
-                            img = gtk.Image()
+                            img = Gtk.Image()
                             img.set_from_pixbuf(get_pixbuf(icon, add_menu_icon_size))
                             a_menu_item.set_image(img)
 
@@ -3023,12 +3023,12 @@ class NCam(gtk.VBox):
                         grp_menu.append(a_menu_item)
 
                         if p.tag.lower() in ['menu', "group"] :
-                            a_menu = gtk.Menu()
+                            a_menu = Gtk.Menu()
                             a_menu_item.set_submenu(a_menu)
                             add_to_menu(a_menu, p)
 
                     elif p.tag.lower() == "separator":
-                        grp_menu.append(gtk.SeparatorMenuItem())
+                        grp_menu.append(Gtk.SeparatorMenuItem())
                 except:
                     pass
 
@@ -3042,25 +3042,25 @@ class NCam(gtk.VBox):
                     add_to_menu(menu_add, _p)
 
     def create_treeview(self):
-        self.treeview = gtk.TreeView(self.treestore)
-        self.treeview.set_grid_lines(gtk.TREE_VIEW_GRID_LINES_VERTICAL)
+        self.treeview = Gtk.TreeView(self.treestore)
+        self.treeview.set_grid_lines(Gtk.TreeViewGridLines.VERTICAL)
         self.builder.get_object("feat_scrolledwindow").add(self.treeview)
 
-        self.treeview.add_events(gdk.BUTTON_PRESS_MASK)
+        self.treeview.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.treeview.connect('button-press-event', self.pop_menu)
         self.treeview.connect('row_activated', self.tv_row_activated)
         self.treeview.connect('key_press_event', self.tv_key_pressed_event)
 
         # icon and name
-        col = gtk.TreeViewColumn(_("Name"))
-        cell = gtk.CellRendererPixbuf()
+        col = Gtk.TreeViewColumn(_("Name"))
+        cell = Gtk.CellRendererPixbuf()
         cell.set_fixed_size(treeview_icon_size, treeview_icon_size)
         self.tv1_icon_cell = cell
         col.pack_start(cell, expand = False)
         col.set_cell_data_func(cell, self.get_col_icon)
         col.set_min_width(int(self.col_width_adj.get_value()))
 
-        self.name_cell = gtk.CellRendererText()
+        self.name_cell = Gtk.CellRendererText()
         col.pack_start(self.name_cell, expand = True)
         col.set_cell_data_func(self.name_cell, self.get_col_name)
         col.set_resizable(True)
@@ -3070,7 +3070,7 @@ class NCam(gtk.VBox):
         self.treeview.append_column(col)
 
         # value
-        col = gtk.TreeViewColumn(_("Value"))
+        col = Gtk.TreeViewColumn(_("Value"))
 
         cell = CellRendererMx(self.treeview)
         cell.edited = self.edited
@@ -3165,12 +3165,12 @@ class NCam(gtk.VBox):
         self.refresh_views()
 
     def create_second_treeview(self):
-        self.treeview2 = gtk.TreeView()
-        self.treeview2.add_events(gdk.BUTTON_PRESS_MASK)
+        self.treeview2 = Gtk.TreeView()
+        self.treeview2.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.treeview2.connect('button-press-event', self.pop_menu)
         self.treeview2.connect('cursor-changed', self.tv2_selected)
         self.treeview2.connect('row_activated', self.tv_row_activated)
-        self.treeview2.set_grid_lines(gtk.TREE_VIEW_GRID_LINES_VERTICAL)
+        self.treeview2.set_grid_lines(Gtk.TreeViewGridLines.VERTICAL)
         self.treeview2.set_show_expanders(self.pref.tv2_expandable)
         if self.pref.tv2_expandable :
             self.treeview2.set_level_indentation(-5)
@@ -3178,15 +3178,15 @@ class NCam(gtk.VBox):
             self.treeview2.set_level_indentation(12)
 
         # icon and name
-        col = gtk.TreeViewColumn(_("Name"))
-        cell = gtk.CellRendererPixbuf()
+        col = Gtk.TreeViewColumn(_("Name"))
+        cell = Gtk.CellRendererPixbuf()
         cell.set_fixed_size(treeview_icon_size, treeview_icon_size)
         self.tv2_icon_cell = cell
 
         col.pack_start(cell, expand = False)
         col.set_cell_data_func(cell, self.get_col_icon)
 
-        self.name_cell2 = gtk.CellRendererText()
+        self.name_cell2 = Gtk.CellRendererText()
         self.name_cell2.set_property('xpad', 2)
         self.name_cell2.set_property('ellipsize', self.pref.name_ellipsis)
         col.pack_start(self.name_cell2, expand = True)
@@ -3196,7 +3196,7 @@ class NCam(gtk.VBox):
         self.treeview2.append_column(col)
 
         # value
-        col = gtk.TreeViewColumn(_("Value"))
+        col = Gtk.TreeViewColumn(_("Value"))
         cell = CellRendererMx(self.treeview2)
         cell.set_property("editable", True)
         cell.edited = self.edited
@@ -3279,7 +3279,7 @@ class NCam(gtk.VBox):
 
     def create_actions(self):
         def ca(actionname, stock_id, label, accel, tooltip, callback, *args):
-            act = gtk.Action(actionname, label, tooltip, stock_id)
+            act = Gtk.Action(actionname, label, tooltip, stock_id)
             if callback is not None :
                 act.connect('activate', callback, args)
             if accel is not None :
@@ -3291,29 +3291,29 @@ class NCam(gtk.VBox):
         # actions related to projects_("Create a New Project")("Open A Project")_("Open a Saved Project xml file")_('Save Project')
         # "<control>X"
         self.actionProject = ca('Project', None, _("_Projects"), None, None, None)
-        self.actionNew = ca("New", gtk.STOCK_NEW, None, "<control>N", None, self.action_new_project)
-        self.actionOpen = ca("Open", gtk.STOCK_OPEN, None, "<control>O", None, self.action_open_project, 0)
+        self.actionNew = ca("New", Gtk.STOCK_NEW, None, "<control>N", None, self.action_new_project)
+        self.actionOpen = ca("Open", Gtk.STOCK_OPEN, None, "<control>O", None, self.action_open_project, 0)
         self.actionOpenExample = ca("OpenExample", None, _('Open Example'), '', _('Open Example Project'), self.action_open_project, 1)
-        self.actionSave = ca("Save", gtk.STOCK_SAVE, None, "<control>S", _("Save project as xml file"), self.action_save_project)
+        self.actionSave = ca("Save", Gtk.STOCK_SAVE, None, "<control>S", _("Save project as xml file"), self.action_save_project)
         self.actionSaveTemplate = ca("SaveTemplate", None, _('Save as Default Template'), '', _("Save project as default template"), self.action_save_template)
         self.actionSaveNGC = ca("SaveNGC", None, _('Export gcode as RS274NGC'), '', _('Export gcode as RS274NGC'), self.action_save_ngc)
 
         # actions related to editing
         self.actionEditMenu = ca("EditMenu", None, _("_Edit"), None, None, self.edit_menu_activate)
-        self.actionUndo = ca("Undo", gtk.STOCK_UNDO, None, "<control>Z", _('Undo last operation'), self.action_undo)
-        self.actionRedo = ca("Redo", gtk.STOCK_REDO, None, "<control><shift>Z", _('Cancel last Undo'), self.action_redo)
-        self.actionCut = ca("Cut", gtk.STOCK_CUT, None, "<control>X", _('Cut selected subroutine to clipboard'), self.action_cut)
-        self.actionCopy = ca("Copy", gtk.STOCK_COPY, None, "<control>C", _('Copy selected subroutine to clipboard'), self.action_copy)
-        self.actionPaste = ca("Paste", gtk.STOCK_PASTE, None, "<control>V", _('Paste from clipboard'), self.action_paste)
-        self.actionAdd = ca("Add", gtk.STOCK_ADD, None, "<control>Insert", _('Add a subroutine'), self.action_add)
-        self.actionDuplicate = ca("Duplicate", gtk.STOCK_COPY, _('Duplicate'), "<control>D", _('Duplicate selected subroutine'), self.action_duplicate)
-        self.actionDelete = ca("Delete", gtk.STOCK_REMOVE, None, "<control>Delete", _('Remove selected subroutine'), self.action_delete)
-        self.actionAppendItm = ca("AppendItm", gtk.STOCK_INDENT, _("Add to Items"), "<control>Right", _("Add to Items"), self.action_appendItm)
-        self.actionRemoveItm = ca("RemoveItm", gtk.STOCK_UNINDENT, _("Remove from Items"), "<control>Left", _('Remove from Items'), self.action_removeItem)
-        self.actionMoveUp = ca("MoveUp", gtk.STOCK_GO_UP, _('Move up'), "<control>Up", _('Move up'), self.move, 1)
-        self.actionMoveDown = ca("MoveDown", gtk.STOCK_GO_DOWN, _('Move down'), "<control>Down", _('Move down'), self.move, -1)
-        self.actionSaveUser = ca("SaveUser", gtk.STOCK_SAVE, _('Save Values as Defaults'), '', _('Save Values of this Subroutine as Defaults'), self.action_saveUser)
-        self.actionDeleteUser = ca("DeleteUser", gtk.STOCK_CANCEL, _("Delete Custom Default Values"), None, _("Delete Custom Default Values"), self.action_deleteUser)
+        self.actionUndo = ca("Undo", Gtk.STOCK_UNDO, None, "<control>Z", _('Undo last operation'), self.action_undo)
+        self.actionRedo = ca("Redo", Gtk.STOCK_REDO, None, "<control><shift>Z", _('Cancel last Undo'), self.action_redo)
+        self.actionCut = ca("Cut", Gtk.STOCK_CUT, None, "<control>X", _('Cut selected subroutine to clipboard'), self.action_cut)
+        self.actionCopy = ca("Copy", Gtk.STOCK_COPY, None, "<control>C", _('Copy selected subroutine to clipboard'), self.action_copy)
+        self.actionPaste = ca("Paste", Gtk.STOCK_PASTE, None, "<control>V", _('Paste from clipboard'), self.action_paste)
+        self.actionAdd = ca("Add", Gtk.STOCK_ADD, None, "<control>Insert", _('Add a subroutine'), self.action_add)
+        self.actionDuplicate = ca("Duplicate", Gtk.STOCK_COPY, _('Duplicate'), "<control>D", _('Duplicate selected subroutine'), self.action_duplicate)
+        self.actionDelete = ca("Delete", Gtk.STOCK_REMOVE, None, "<control>Delete", _('Remove selected subroutine'), self.action_delete)
+        self.actionAppendItm = ca("AppendItm", Gtk.STOCK_INDENT, _("Add to Items"), "<control>Right", _("Add to Items"), self.action_appendItm)
+        self.actionRemoveItm = ca("RemoveItm", Gtk.STOCK_UNINDENT, _("Remove from Items"), "<control>Left", _('Remove from Items'), self.action_removeItem)
+        self.actionMoveUp = ca("MoveUp", Gtk.STOCK_GO_UP, _('Move up'), "<control>Up", _('Move up'), self.move, 1)
+        self.actionMoveDown = ca("MoveDown", Gtk.STOCK_GO_DOWN, _('Move down'), "<control>Down", _('Move down'), self.move, -1)
+        self.actionSaveUser = ca("SaveUser", Gtk.STOCK_SAVE, _('Save Values as Defaults'), '', _('Save Values of this Subroutine as Defaults'), self.action_saveUser)
+        self.actionDeleteUser = ca("DeleteUser", Gtk.STOCK_CANCEL, _("Delete Custom Default Values"), None, _("Delete Custom Default Values"), self.action_deleteUser)
         self.actionSetDigits = ca("SetDigits", None, _('Set Digits'), None, None, None)
         self.actionDigit1 = ca("Digit1", None, '1', None, None, self.action_digits, '1')
         self.actionDigit2 = ca("Digit2", None, '2', None, None, self.action_digits, '2')
@@ -3324,13 +3324,13 @@ class NCam(gtk.VBox):
 
         # actions related to adding subroutines
         self.actionAddMenu = ca("AddMenu", None, _("_Add"), None, None, None)
-        self.actionLoadCfg = ca("LoadCfg", gtk.STOCK_OPEN, _('Add a Prototype Subroutine'), '', _('Add a Subroutine Definition File'), self.action_loadCfg)
-        self.actionImportXML = ca("ImportXML", gtk.STOCK_REVERT_TO_SAVED, _('Import a Project File'), None, _('Import a Project Into the Current One'), self.action_importXML)
+        self.actionLoadCfg = ca("LoadCfg", Gtk.STOCK_OPEN, _('Add a Prototype Subroutine'), '', _('Add a Subroutine Definition File'), self.action_loadCfg)
+        self.actionImportXML = ca("ImportXML", Gtk.STOCK_REVERT_TO_SAVED, _('Import a Project File'), None, _('Import a Project Into the Current One'), self.action_importXML)
 
         # actions related to view
         self.actionViewMenu = ca("ViewMenu", None, _("_View"), None, None, self.view_menu_activate)
-        self.actionCollapse = ca("Collapse", gtk.STOCK_ZOOM_OUT, _("Collapse All Other Nodes"), '<control>K', _("Collapse All Other Nodes"), self.action_collapse)
-        self.actionSaveLayout = ca("SaveLayout", gtk.STOCK_SAVE, _('Save As Default Layout'), '', _('Save As Default Layout'), self.action_saveLayout)
+        self.actionCollapse = ca("Collapse", Gtk.STOCK_ZOOM_OUT, _("Collapse All Other Nodes"), '<control>K', _("Collapse All Other Nodes"), self.action_collapse)
+        self.actionSaveLayout = ca("SaveLayout", Gtk.STOCK_SAVE, _('Save As Default Layout'), '', _('Save As Default Layout'), self.action_saveLayout)
 
         self.action_group.add_radio_actions([
             ("SingleView", None, _('Single View'), None, None, 1),
@@ -3342,31 +3342,31 @@ class NCam(gtk.VBox):
             ("SideSide", None, _('Side By Side Layout'), None, None, 2)
         ], 1, self.set_layout)
 
-        self.actionHideCol = gtk.ToggleAction("HideCol", _('Master Value Column Hidden'), _('In master treeview'), None)
+        self.actionHideCol = Gtk.ToggleAction("HideCol", _('Master Value Column Hidden'), _('In master treeview'), None)
         self.actionHideCol.connect("toggled", self.set_layout)
         self.action_group.add_action(self.actionHideCol)
 
-        self.actionSubHdrs = gtk.ToggleAction("SubHdrs", _('Sub-Groups In Master Tree'), _('Sub-Groups In Master Tree'), None)
+        self.actionSubHdrs = Gtk.ToggleAction("SubHdrs", _('Sub-Groups In Master Tree'), _('Sub-Groups In Master Tree'), None)
         self.actionSubHdrs.connect("toggled", self.set_layout)
         self.action_group.add_action(self.actionSubHdrs)
 
         # actions related to utilities
         self.actionUtilMenu = ca("UtilitiesMenu", None, _("_Utilities"), None, None, self.utilMenu_activate)
-        self.actionLoadTools = ca("LoadTools", gtk.STOCK_REFRESH, _("Reload Tool Table"), None, _("Reload Tool Table"), TOOL_TABLE.load_table)
-        self.actionPreferences = ca("Preferences", gtk.STOCK_PREFERENCES, _("Edit Preferences"), None, _("Edit Preferences"), self.action_preferences)
+        self.actionLoadTools = ca("LoadTools", Gtk.STOCK_REFRESH, _("Reload Tool Table"), None, _("Reload Tool Table"), TOOL_TABLE.load_table)
+        self.actionPreferences = ca("Preferences", Gtk.STOCK_PREFERENCES, _("Edit Preferences"), None, _("Edit Preferences"), self.action_preferences)
 
-        self.actionAutoRefresh = gtk.ToggleAction("AutoRefresh", _("Auto-refresh"), _('Auto-refresh LinuxCNC'), None)
+        self.actionAutoRefresh = Gtk.ToggleAction("AutoRefresh", _("Auto-refresh"), _('Auto-refresh LinuxCNC'), None)
         self.actionAutoRefresh.set_active(False)
         self.action_group.add_action(self.actionAutoRefresh)
 
         self.actionChUnits = ca("ChUnits", None, _("Change Units"), None, _(""), self.action_chUnits)
 
         # actions related to validations
-        self.actionValidationMenu = ca("ValidationMenu", gtk.STOCK_INFO, _("_Validation Messages"), None, None, self.validation_menu_activate)
-        self.actionValAllDlg = ca("ValAllDlg", gtk.STOCK_YES, _("Show All"), None, _("Show All Non-validation Messages"), self.action_ValAllDlg)
-        self.actionValNoDlg = ca("ValNoDlg", gtk.STOCK_NO, _("Show None"), None, _("Do Not Show Any Messages"), self.action_ValNoDlg)
-        self.actionValFeatDlg = ca("ValFeatDlg", gtk.STOCK_YES, _("Show All For Current Type"), None, None, self.action_ValFeatDlg)
-        self.actionValFeatNone = ca("ValFeatNone", gtk.STOCK_NO, _("Show None For Current Type"), None, None, self.action_ValFeatNone)
+        self.actionValidationMenu = ca("ValidationMenu", Gtk.STOCK_INFO, _("_Validation Messages"), None, None, self.validation_menu_activate)
+        self.actionValAllDlg = ca("ValAllDlg", Gtk.STOCK_YES, _("Show All"), None, _("Show All Non-validation Messages"), self.action_ValAllDlg)
+        self.actionValNoDlg = ca("ValNoDlg", Gtk.STOCK_NO, _("Show None"), None, _("Do Not Show Any Messages"), self.action_ValNoDlg)
+        self.actionValFeatDlg = ca("ValFeatDlg", Gtk.STOCK_YES, _("Show All For Current Type"), None, None, self.action_ValFeatDlg)
+        self.actionValFeatNone = ca("ValFeatNone", Gtk.STOCK_NO, _("Show None For Current Type"), None, None, self.action_ValFeatNone)
 
         # actions related to help
         self.actionHelpMenu = ca("HelpMenu", None, _("_Help"), None, None, None)
@@ -3374,13 +3374,13 @@ class NCam(gtk.VBox):
         self.actionYouTrans = ca("YouTranslate", None, _('Translating NativeCAM'), None, None, self.action_youTrans)
         self.actionCNCHome = ca("CNCHome", None, _("LinuxCNC web Site"), None, None, self.action_lcncHome)
         self.actionForum = ca("CNCForum", None, _('LinuxCNC Forum'), None, None, self.action_lcncForum)
-        self.actionAbout = ca("About", gtk.STOCK_ABOUT, None, None, None, self.action_about)
+        self.actionAbout = ca("About", Gtk.STOCK_ABOUT, None, None, None, self.action_about)
 
         # actions related to toolbars and popup
         self.actionHideField = ca("HideField", None, _("Hide Selected Field"), None, _("Hide Selected Field"), self.action_hideField)
         self.actionShowF = ca("ShowFields", None, _("Show All Fields"), None, _("Show All Fields"), self.action_showFields)
-        self.actionCurrent = ca("Current", gtk.STOCK_SAVE, _("Save Project as Current Work"), '', _('Save Project as Current Work'), self.action_saveCurrent)
-        self.actionBuild = ca("Build", gtk.STOCK_EXECUTE, _('Generate %(filename)s') % {'filename':GENERATED_FILE}, None,
+        self.actionCurrent = ca("Current", Gtk.STOCK_SAVE, _("Save Project as Current Work"), '', _('Save Project as Current Work'), self.action_saveCurrent)
+        self.actionBuild = ca("Build", Gtk.STOCK_EXECUTE, _('Generate %(filename)s') % {'filename':GENERATED_FILE}, None,
                      _('Generate %(filename)s and load it in LinuxCNC') % {'filename':GENERATED_FILE}, self.action_build)
         self.actionRename = ca("Rename", None, _("Rename Subroutine"), None, _('Rename Subroutine'), self.action_renameF)
         self.actionChngGrp = ca("ChngGrp", None, _("Group <-- --> Sub-group"), None, _('Group <-- --> Sub-group'), self.action_chng_group)
@@ -3659,7 +3659,7 @@ class NCam(gtk.VBox):
             self.treeview2.get_column(0).set_min_width(int(self.col_width_adj.get_value()))
 
     def tv_key_pressed_event(self, widget, event) :
-        keyname = gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(event.keyval)
         model, itr = widget.get_selection().get_selected()
 
         self.focused_widget = widget
@@ -3669,12 +3669,12 @@ class NCam(gtk.VBox):
         else :
             path = None
 
-        if event.state & gdk.SHIFT_MASK :
-            if event.state & gdk.CONTROL_MASK :
+        if event.state & Gdk.ModifierType.SHIFT_MASK :
+            if event.state & Gdk.ModifierType.CONTROL_MASK :
                 if keyname in ['z', 'Z'] :
                     self.actionRedo.activate()
 
-        elif event.state & gdk.CONTROL_MASK :
+        elif event.state & Gdk.ModifierType.CONTROL_MASK :
             if keyname in ['z', 'Z'] :
                 self.actionUndo.activate()
 
@@ -3867,7 +3867,7 @@ class NCam(gtk.VBox):
 
     def treestore_from_xml(self, xml):
 
-        treestore = gtk.TreeStore(object, str, gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN)
+        treestore = Gtk.TreeStore(object, str, GObject.TYPE_BOOLEAN, GObject.TYPE_BOOLEAN)
 
         def recursive(itr, xmlpath):
             for xml in xmlpath :
@@ -3988,11 +3988,11 @@ class NCam(gtk.VBox):
             _("(end sub definitions)\n\n") + gcode + self.pref.ngc_post_amble + '\nM2\n'
 
     def action_save_ngc(self, *arg) :
-        filechooserdialog = gtk.FileChooserDialog(_("Save as ngc..."), None,
-            gtk.FILE_CHOOSER_ACTION_SAVE,
-            (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        filechooserdialog = Gtk.FileChooserDialog(_("Save as ngc..."), None,
+            Gtk.FileChooserAction.SAVE,
+            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
         try :
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name("NGC")
             filt.add_mime_type("text/ngc")
             filt.add_pattern("*.ngc")
@@ -4001,7 +4001,7 @@ class NCam(gtk.VBox):
             filechooserdialog.set_keep_above(True)
             filechooserdialog.set_transient_for(self.get_toplevel())
 
-            if filechooserdialog.run() == gtk.RESPONSE_OK:
+            if filechooserdialog.run() == Gtk.ResponseType.OK:
                 gcode = self.to_gcode()
                 filename = filechooserdialog.get_filename()
                 if filename[-4] != ".ngc" not in filename :
@@ -4050,7 +4050,7 @@ class NCam(gtk.VBox):
                     itr_n = self.treestore.iter_next(itr_n)
 
                 if param_e is not None :
-                    r = gtk.RESPONSE_NONE
+                    r = Gtk.ResponseType.NONE
                     renderer.set_tooltip(param_e.get_tooltip())
                     dt = param_e.get_type()
                     renderer.set_edit_datatype(dt)
@@ -4068,7 +4068,7 @@ class NCam(gtk.VBox):
                         renderer.set_options(param_e.get_options())
                         r, v = renderer.edit_list(gmoccapy_time_out)
 
-                    if r == gtk.RESPONSE_OK :
+                    if r == Gtk.ResponseType.OK :
                         value_changed = param_e.set_value(v, parent)
                     else :
                         return
@@ -4117,16 +4117,16 @@ class NCam(gtk.VBox):
             self.focused_widget.grab_focus()
 
     def action_renameF(self, *arg):
-        self.newnamedlg = gtk.MessageDialog(parent = None,
-            flags = gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-            type = gtk.MESSAGE_QUESTION,
-            buttons = gtk.BUTTONS_OK_CANCEL
+        self.newnamedlg = Gtk.MessageDialog(parent = None,
+            flags = Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            type = Gtk.MessageType.QUESTION,
+            buttons = Gtk.ButtonsType.OK_CANCEL
         )
         old_name = self.selected_feature.get_attr('name')
         self.newnamedlg.set_markup(_('Enter new name for'))
         self.newnamedlg.format_secondary_markup(old_name)
         self.newnamedlg.set_title('NativeCAM')
-        edit_entry = gtk.Entry()
+        edit_entry = Gtk.Entry()
         edit_entry.set_editable(True)
         edit_entry.set_text(old_name)
         edit_entry.connect('key-press-event', self.action_rename_keyhandler)
@@ -4138,7 +4138,7 @@ class NCam(gtk.VBox):
 
         self.newnamedlg.show_all()
         response = self.newnamedlg.run()
-        if (response == gtk.RESPONSE_OK) :
+        if (response == Gtk.ResponseType.OK) :
             newname = edit_entry.get_text().lstrip(' ')
             if newname > '' :
                 self.selected_feature.attr['name'] = newname
@@ -4146,9 +4146,9 @@ class NCam(gtk.VBox):
         self.newnamedlg.destroy()
 
     def action_rename_keyhandler(self, widget, event):
-        keyname = gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(event.keyval)
         if keyname in ['Return', 'KP_Enter']:
-            self.newnamedlg.response(gtk.RESPONSE_OK)
+            self.newnamedlg.response(Gtk.ResponseType.OK)
 
     def import_xml(self, xml_i) :
         if xml_i.tag != XML_TAG:
@@ -4316,7 +4316,7 @@ class NCam(gtk.VBox):
     def update_do_btns(self, refresh):
         self.set_do_buttons_state()
         if self.actionAutoRefresh.get_active() and refresh:
-            self.timeout = gobject.timeout_add(self.pref.timeout_value,
+            self.timeout = GLib.timeout_add(self.pref.timeout_value,
                     self.autorefresh_call)
 
     def action_undo(self, *arg) :
@@ -4347,7 +4347,7 @@ class NCam(gtk.VBox):
         self.set_do_buttons_state()
 
     def action_about(self, *arg):
-        dialog = gtk.AboutDialog()
+        dialog = Gtk.AboutDialog()
         dialog.set_name(APP_TITLE)
 
         try :
@@ -4444,22 +4444,22 @@ class NCam(gtk.VBox):
     def create_nc_toolbar(self):
         if self.nc_toolbar is not None :
             self.nc_toolbar.destroy()
-        self.nc_toolbar = gtk.Toolbar()
-        self.nc_toolbar.set_style(gtk.TOOLBAR_ICONS)
+        self.nc_toolbar = Gtk.Toolbar()
+        self.nc_toolbar.set_style(Gtk.TOOLBAR_ICONS)
         self.nc_toolbar.set_can_focus(False)
 
         count = len(TB_CATALOG)
         for x in range(count) :
             li = TB_CATALOG[x]
             if li == 'separator' :
-                self.nc_toolbar.insert(gtk.SeparatorToolItem(), -1)
+                self.nc_toolbar.insert(Gtk.SeparatorToolItem(), -1)
             else :
                 if li[3] is not None :
-                    icon = gtk.Image()
+                    icon = Gtk.Image()
                     icon.set_from_pixbuf(get_pixbuf(li[3], quick_access_icon_size))
-                    button = gtk.ToolButton(icon_widget = icon, label = _(li[0]))
+                    button = Gtk.ToolButton(icon_widget = icon, label = _(li[0]))
                 else :
-                    button = gtk.ToolButton(label = li[0])
+                    button = Gtk.ToolButton(label = li[0])
                 if li[1] is not None :
                     button.set_tooltip_markup(_(li[1]))
                 button.connect('clicked', self.add_feature, li[2])
@@ -4712,16 +4712,16 @@ class NCam(gtk.VBox):
         self.treestore.foreach(treestore_get_expand)
 
     def action_importXML(self, *arg) :
-        filechooserdialog = gtk.FileChooserDialog(_("Import project"), None, \
-                gtk.FILE_CHOOSER_ACTION_OPEN, (gtk.STOCK_CANCEL, \
-                gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        filechooserdialog = Gtk.FileChooserDialog(_("Import project"), None, \
+                Gtk.FileChooserAction.OPEN, (Gtk.STOCK_CANCEL, \
+                Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
         try:
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name(_("NativeCAM projects"))
             filt.add_mime_type("text/xml")
             filt.add_pattern("*.xml")
             filechooserdialog.add_filter(filt)
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name(_("All files"))
             filt.add_pattern("*")
             filechooserdialog.add_filter(filt)
@@ -4729,7 +4729,7 @@ class NCam(gtk.VBox):
             filechooserdialog.set_keep_above(True)
             filechooserdialog.set_transient_for(self.get_toplevel())
 
-            if filechooserdialog.run() == gtk.RESPONSE_OK:
+            if filechooserdialog.run() == Gtk.ResponseType.OK:
                 fname = filechooserdialog.get_filename()
                 try :
                     xml = self.update_features(etree.parse(fname).getroot())
@@ -4817,11 +4817,11 @@ class NCam(gtk.VBox):
     def action_save_project(self, *arg) :
         global CURRENT_PROJECT
 
-        filechooserdialog = gtk.FileChooserDialog(_("Save project as..."), None,
-                gtk.FILE_CHOOSER_ACTION_SAVE, (gtk.STOCK_CANCEL, \
-                gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        filechooserdialog = Gtk.FileChooserDialog(_("Save project as..."), None,
+                Gtk.FileChooserAction.SAVE, (Gtk.STOCK_CANCEL, \
+                Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
         try:
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name(_("NativeCAM projects"))
             filt.add_mime_type("text/xml")
             filt.add_pattern("*.xml")
@@ -4833,7 +4833,7 @@ class NCam(gtk.VBox):
             filechooserdialog.set_keep_above(True)
             filechooserdialog.set_transient_for(self.get_toplevel())
 
-            if filechooserdialog.run() == gtk.RESPONSE_OK:
+            if filechooserdialog.run() == Gtk.ResponseType.OK:
                 xml = self.treestore_to_xml()
                 CURRENT_PROJECT = filechooserdialog.get_filename()
                 if CURRENT_PROJECT[-4] != ".xml" not in CURRENT_PROJECT :
@@ -4861,11 +4861,11 @@ class NCam(gtk.VBox):
             flt_name = _("NativeCAM example projects")
             dir_ = os.path.join(NCAM_DIR, CATALOGS_DIR, self.catalog_dir, PROJECTS_DIR, EXAMPLES_DIR)
 
-        filechooserdialog = gtk.FileChooserDialog(dlg_title, None,
-                gtk.FILE_CHOOSER_ACTION_OPEN, (gtk.STOCK_CANCEL, \
-                gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+        filechooserdialog = Gtk.FileChooserDialog(dlg_title, None,
+                Gtk.FileChooserAction.OPEN, (Gtk.STOCK_CANCEL, \
+                Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
         try:
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name(flt_name)
             if arg[1][0] == 0 :
                 filt.add_mime_type("text/xml")
@@ -4877,7 +4877,7 @@ class NCam(gtk.VBox):
             filechooserdialog.set_keep_above(True)
             filechooserdialog.set_transient_for(self.get_toplevel())
 
-            if filechooserdialog.run() == gtk.RESPONSE_OK:
+            if filechooserdialog.run() == Gtk.ResponseType.OK:
                 filename = filechooserdialog.get_filename()
                 src_data = open(filename).read()
                 if src_data.find(XML_TAG) != 1 :
@@ -4896,12 +4896,12 @@ class NCam(gtk.VBox):
             filechooserdialog.destroy()
 
     def action_loadCfg(self, *arg) :
-        filechooserdialog = gtk.FileChooserDialog(_("Open a cfg file"), None, \
-                    gtk.FILE_CHOOSER_ACTION_OPEN, \
-                    (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
-                     gtk.STOCK_OK, gtk.RESPONSE_OK))
+        filechooserdialog = Gtk.FileChooserDialog(_("Open a cfg file"), None, \
+                    Gtk.FileChooserAction.OPEN, \
+                    (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                     Gtk.STOCK_OK, Gtk.ResponseType.OK))
         try:
-            filt = gtk.FileFilter()
+            filt = Gtk.FileFilter()
             filt.set_name(_("Config files"))
             filt.add_mime_type("text/xml")
             filt.add_pattern("*.cfg")
@@ -4910,7 +4910,7 @@ class NCam(gtk.VBox):
             filechooserdialog.set_keep_above(True)
             filechooserdialog.set_transient_for(self.get_toplevel())
 
-            if filechooserdialog.run() == gtk.RESPONSE_OK:
+            if filechooserdialog.run() == Gtk.ResponseType.OK:
                 self.add_feature(None, filechooserdialog.get_filename())
         finally :
             filechooserdialog.destroy()
@@ -5153,11 +5153,11 @@ if __name__ == "__main__":
         in_tab = ("-t" in optlist) or ("--tab" in optlist)
         verify_ini(os.path.abspath(ini), catalog, in_tab)
 
-    window = gtk.Dialog(APP_TITLE, None, gtk.DIALOG_MODAL)
+    window = Gtk.Dialog(APP_TITLE, None, Gtk.DialogFlags.MODAL)
     ncam = NCam()
     window.vbox.add(ncam)
     ncam.actionCurrent.set_visible(True)
     window.add_accel_group(ncam.accelGroup)
-    window.connect("destroy", gtk.main_quit)
+    window.connect("destroy", Gtk.main_quit)
     window.set_default_size(400, 800)
     exit(window.run())
