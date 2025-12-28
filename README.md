@@ -1,9 +1,22 @@
 NativeCAM for LinuxCNC - realtime CAM
 
-NativeCAM as a deb package can now be used with new stable release of LinuxCNC (2.7.9)
+NativeCAM as a deb package can now be used with new stable release of LinuxCNC (2.7.9+).
 It will be automatically updated after changes are published.
 
 DO NOT USE AS A NONDEB_SETUP ANYMORE
+
+Dependencies (Debian/Ubuntu):
+* LinuxCNC 2.7.9 or newer (2.8 supported for joints/axes examples).
+* GTK3 runtime: gir1.2-gtk-3.0 (libgtk-3-0 is pulled in).
+* PyGObject: python3-gi.
+* Python 3 modules: python3, python3-lxml.
+
+Installation (deb package):
+* Install the dependencies above (LinuxCNC package or RIP install).
+* Build/install the NativeCAM deb and then run: `ncam -h`.
+
+If you are using a LinuxCNC RIP install, source `rip-environment` before running
+`linuxcnc_var all` to verify auxiliary directories.
 
 If not installed yet, follow instructions at
 	https://forum.linuxcnc.org/40-subroutines-and-ngcgui/32891-use-nativecam-as-a-deb-package-now?limitstart=0#94274

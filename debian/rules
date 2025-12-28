@@ -11,7 +11,7 @@ EXAMPLES_DIR="/usr/share/linuxcnc/aux_examples/NativeCAM"
 %:
 	@echo "AUX_DIR=$(AUX_DIR)"
 	@echo "EXAMPLES_DIR=$(EXAMPLES_DIR)"
-	dh $@ --with-python
+	dh $@ --with python3
 
 override_dh_install:
 	# Auxiliary gladevcp application files & directories:
