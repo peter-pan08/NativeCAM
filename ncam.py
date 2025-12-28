@@ -648,7 +648,14 @@ class VKB(object):
         lbl.set_markup(tooltip)
 
         self.entry = Gtk.Label('')
-        self.entry.modify_font(Pango.FontDescription('sans 14'))
+        entry_css_provider = Gtk.CssProvider()
+        entry_css_provider.load_from_data(
+            b"#vkb-entry-label { font-size: 14px; font-family: sans; }"
+        )
+        self.entry.set_name("vkb-entry-label")
+        self.entry.get_style_context().add_provider(
+            entry_css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
         self.entry.set_alignment(1.0, 0.5)
         self.entry.set_property('ellipsize', Pango.EllipsizeMode.START)
 

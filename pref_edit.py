@@ -123,7 +123,15 @@ class PrefEditor():
         else :
             parent = None
 
-        builder.get_object("valueLbl").modify_font(Pango.FontDescription('sans 16'))
+        value_label = builder.get_object("valueLbl")
+        value_css_provider = Gtk.CssProvider()
+        value_css_provider.load_from_data(
+            b"#pref-value-label { font-size: 16px; font-family: sans; }"
+        )
+        value_label.set_name("pref-value-label")
+        value_label.get_style_context().add_provider(
+            value_css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
         self.adj_WindowWidth = builder.get_object("hscaleWindowWidth").get_adjustment()
         self.adj_tvWidth = builder.get_object("hscaleTVWidth").get_adjustment()
         self.adj_nameColWidth = builder.get_object("hscaleNameColWidth").get_adjustment()
