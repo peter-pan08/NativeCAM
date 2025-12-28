@@ -13,6 +13,8 @@ APP_AUTHORS = ['Fernand Veilleux, maintainer', 'Nick Drobchenko, initiator',
 APP_VERSION = "(non deb)"
 
 import gi
+gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 import sys
@@ -3593,7 +3595,8 @@ class NCam(Gtk.VBox):
             tree_path = None
             self.hint_label.set_text('')
 
-        if self.actionDualView.get_active() :
+        dual_view_action = getattr(self, "actionDualView", None)
+        if dual_view_action is not None and dual_view_action.get_active() :
             if self.iter_selected_type == tv_select.none :
                 if self.treeview2 is None:
                     self.create_second_treeview()
@@ -4486,7 +4489,7 @@ class NCam(Gtk.VBox):
         if self.nc_toolbar is not None :
             self.nc_toolbar.destroy()
         self.nc_toolbar = Gtk.Toolbar()
-        self.nc_toolbar.set_style(Gtk.TOOLBAR_ICONS)
+        self.nc_toolbar.set_style(Gtk.ToolbarStyle.ICONS)
         self.nc_toolbar.set_can_focus(False)
 
         count = len(TB_CATALOG)
