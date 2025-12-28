@@ -11,7 +11,7 @@ import sys, os
 from gtk import gdk
 import pygtk
 pygtk.require('2.0')
-import ConfigParser
+import configparser
 import gettext, re
 import pango
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
         lang = gettext.translation(APP_NAME, nativecam_locale, fallback = True)
         lang.install()
     except :
-        gettext.install(APP_NAME, None, unicode = True)
+        gettext.install(APP_NAME, None)
 
 def translate(fstring):
     # translate the glade file when testing translation
@@ -95,11 +95,11 @@ class PrefEditor():
         self.path = path
         self.default_metric = is_metric
         self.cfg_file = os.path.join(path, 'catalogs', 'ncam.conf')
-        self.config_pref = ConfigParser.ConfigParser()
+        self.config_pref = configparser.ConfigParser()
         self.config_pref.read(self.cfg_file)
 
         self.pref_file = os.path.join(path, 'catalogs', catalog, 'default.conf')
-        self.config_def = ConfigParser.ConfigParser()
+        self.config_def = configparser.ConfigParser()
         self.config_def.read(self.pref_file)
         self.catalog = catalog
 
