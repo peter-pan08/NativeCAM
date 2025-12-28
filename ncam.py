@@ -89,6 +89,7 @@ It is recommended you use the deb package
 
 VALID_CATALOGS = ['mill', 'plasma', 'lathe']
 DEFAULT_CATALOG = "mill"
+SUPPORTED_DISPLAYS = ['axis', 'gmoccapy', 'gscreen']
 
 # directories
 CFG_DIR = 'cfg'
@@ -2386,7 +2387,8 @@ class NCam(Gtk.VBox):
             require_ini_items(inifilename, ini_instance)
 
             val = ini_instance.find('DISPLAY', 'DISPLAY')
-            if val not in ['axis', 'gmoccapy', 'gscreen'] :
+            display_val = (val or '').strip().lower()
+            if display_val not in SUPPORTED_DISPLAYS :
                 mess_dlg(_("DISPLAY can only be 'axis', 'gmoccapy' or 'gscreen'"))
                 sys.exit(-1)
 
@@ -4994,8 +4996,8 @@ def verify_ini(fname, ctlog, in_tab) :
         try :
             parser.read_string(txt1)
 
-            dp = parser.get('DISPLAY', 'DISPLAY').lower()
-            if dp not in ['gmoccapy', 'axis', 'gscreen'] :
+            dp = parser.get('DISPLAY', 'DISPLAY').strip().lower()
+            if dp not in SUPPORTED_DISPLAYS :
                 mess_dlg(_("DISPLAY can only be 'axis', 'gmoccapy' or 'gscreen'"))
                 sys.exit(-1)
 
