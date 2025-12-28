@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk+" version="2.16"/>
+  <requires lib="gtk+" version="3.0"/>
   <!-- interface-naming-policy project-wide -->
   <object class="GtkAdjustment" id="adj_digits">
     <property name="lower">1</property>
@@ -42,9 +42,10 @@
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">NativeCAM</property>
     <child>
-      <object class="GtkVBox" id="MainBox">
+      <object class="GtkBox" id="MainBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
         <signal name="destroy" handler="on_destroy" swapped="no"/>
         <child>
           <placeholder/>
@@ -71,9 +72,10 @@
           <placeholder/>
         </child>
         <child>
-          <object class="GtkVBox" id="vbox4">
+          <object class="GtkBox" id="vbox4">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
             <child>
               <object class="GtkHPaned" id="hpaned1">
                 <property name="visible">True</property>
@@ -170,9 +172,10 @@
                 <property name="label_xalign">0</property>
                 <property name="shadow_type">out</property>
                 <child>
-                  <object class="GtkVBox" id="addVBox">
+                  <object class="GtkBox" id="addVBox">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkToolbar" id="add_toolbar">
                         <property name="visible">True</property>
