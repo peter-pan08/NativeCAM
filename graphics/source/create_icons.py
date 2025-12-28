@@ -22,9 +22,6 @@
 
 import sys
 
-import pygtk
-pygtk.require('2.0')
-
 from lxml import etree
 import os
 import getopt
@@ -60,4 +57,3 @@ for x in xml.findall(".//{http://www.w3.org/2000/svg}title") :
 		print(e)
 		print()
 	print()
-
